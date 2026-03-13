@@ -1,0 +1,815 @@
+/* ─── 2FA Manager — 2FAuth-inspired Theme ─── */
+
+:root {
+    --bg-dark: #19232d;
+    --bg-darker: #111a22;
+    --bg-card: #222d3a;
+    --bg-card-hover: #2a3847;
+    --bg-input: #1b2735;
+    --border-color: #2d3d4f;
+    --text-primary: #e8edf2;
+    --text-secondary: #8e9baa;
+    --text-muted: #8a9baa;
+    --accent: #5865f2;
+    --accent-hover: #4752c4;
+    --accent-glow: rgba(88, 101, 242, 0.25);
+    --success: #3ba55c;
+    --danger: #ed4245;
+    --warning: #faa61a;
+    --otp-color: #ffffff;
+    --ring-bg: rgba(255,255,255,0.08);
+    --ring-fg: #5865f2;
+    --ring-danger: #ed4245;
+    --ring-warning: #faa61a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    min-height: 100vh;
+}
+
+a { color: var(--accent); }
+a:hover { color: var(--accent-hover); }
+
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 8px;
+    background: var(--accent);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    z-index: 2000;
+    text-decoration: none;
+}
+.skip-link:focus {
+    top: 8px;
+}
+
+:focus-visible {
+    outline: 3px solid var(--warning);
+    outline-offset: 2px;
+}
+
+/* ── Sidebar Navigation ── */
+.app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 220px;
+    height: 100vh;
+    background: var(--bg-darker);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    z-index: 1040;
+    transition: transform .3s ease;
+}
+
+.sidebar-brand {
+    padding: 1.25rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    border-bottom: 1px solid var(--border-color);
+    text-decoration: none;
+}
+.sidebar-brand .brand-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.sidebar-brand .brand-text {
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: .75rem 0;
+    overflow-y: auto;
+}
+.sidebar-nav .nav-section {
+    padding: .5rem 1rem .25rem;
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+.sidebar-nav .nav-link {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    padding: .55rem 1rem;
+    margin: 1px .5rem;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: .875rem;
+    transition: all .15s;
+}
+.sidebar-nav .nav-link:hover {
+    background: rgba(255,255,255,.06);
+    color: var(--text-primary);
+}
+.sidebar-nav .nav-link.active {
+    background: var(--accent);
+    color: #fff;
+}
+.sidebar-nav .nav-link:focus-visible,
+.sidebar-toggle:focus-visible,
+.btn-logout:focus-visible,
+.btn-action:focus-visible,
+.tenant-pill:focus-visible {
+    outline: 3px solid var(--warning);
+    outline-offset: 2px;
+}
+.sidebar-nav .nav-link i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.sidebar-user {
+    padding: .75rem 1rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+.sidebar-user .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: .8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.sidebar-user .user-info {
+    flex: 1;
+    min-width: 0;
+}
+.sidebar-user .user-name {
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sidebar-user .user-role {
+    font-size: .7rem;
+    color: var(--text-muted);
+}
+.sidebar-user .btn-logout {
+    color: var(--text-muted);
+    border: none;
+    background: none;
+    padding: .25rem;
+    border-radius: 6px;
+    transition: .15s;
+}
+.sidebar-user .btn-logout:hover {
+    color: var(--danger);
+    background: rgba(237,66,69,.1);
+}
+
+.sidebar-toggle {
+    display: none;
+    position: fixed;
+    top: .75rem;
+    left: .75rem;
+    z-index: 1050;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+/* App main content area */
+.app-main {
+    margin-left: 220px;
+    min-height: 100vh;
+    padding: 1.5rem 2rem;
+}
+
+/* ── OTP Account Cards (2FAuth style) ── */
+.otp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: .75rem;
+}
+
+.otp-account {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: .65rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s ease;
+    position: relative;
+    overflow: hidden;
+}
+.otp-account:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
+    transform: translateY(-1px);
+}
+.otp-account:focus-visible {
+    border-color: var(--warning);
+    box-shadow: 0 0 0 3px rgba(250,166,26,.35);
+}
+.otp-account.is-tenant {
+    border-left: 3px solid var(--success);
+}
+
+.otp-account .account-name {
+    font-weight: 600;
+    font-size: .8rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.otp-account .account-issuer {
+    font-size: .7rem;
+    color: var(--text-muted);
+    margin-bottom: .5rem;
+}
+
+/* OTP code display */
+.otp-account .otp-value {
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--otp-color);
+    letter-spacing: 3px;
+    user-select: all;
+    min-height: 1.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Circular countdown ring */
+.otp-account .countdown-ring {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    margin-top: .4rem;
+}
+.countdown-ring svg {
+    transform: rotate(-90deg);
+    width: 30px;
+    height: 30px;
+}
+.countdown-ring .ring-bg {
+    fill: none;
+    stroke: var(--ring-bg);
+    stroke-width: 3;
+}
+.countdown-ring .ring-fg {
+    fill: none;
+    stroke: var(--ring-fg);
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke .3s;
+}
+.countdown-ring .ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .65rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+/* Copy feedback */
+.otp-account .copy-toast {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: var(--success);
+    color: #fff;
+    padding: .4rem .8rem;
+    border-radius: 8px;
+    font-size: .8rem;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: all .2s ease;
+    z-index: 5;
+}
+.otp-account.copied .copy-toast {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* Account card actions */
+.otp-account .account-actions {
+    position: absolute;
+    top: .5rem;
+    right: .5rem;
+    opacity: 0;
+    transition: opacity .15s;
+}
+.otp-account:hover .account-actions,
+.otp-account:focus-within .account-actions {
+    opacity: 1;
+}
+.account-actions .btn-action {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(255,255,255,.08);
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .75rem;
+    cursor: pointer;
+    transition: .15s;
+}
+.account-actions .btn-action:hover {
+    background: rgba(255,255,255,.15);
+    color: var(--text-primary);
+}
+.account-actions .btn-action.text-danger:hover {
+    background: rgba(237,66,69,.15);
+    color: var(--danger);
+}
+
+/* ── Page Header ── */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.page-header h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+/* ── Section Divider ── */
+.section-label {
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: .75rem;
+    padding-bottom: .4rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+.section-label .badge {
+    font-size: .65rem;
+}
+
+/* ── Cards / Panels ── */
+.card, .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    color: var(--text-primary);
+}
+.card-header {
+    background: transparent !important;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 14px 14px 0 0 !important;
+    padding: .9rem 1.25rem;
+}
+.card-body { padding: 1.25rem; }
+.card-footer {
+    background: transparent;
+    border-top: 1px solid var(--border-color);
+}
+
+/* ── Buttons ── */
+.btn-accent {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: .5rem 1.1rem;
+    font-weight: 600;
+    font-size: .875rem;
+    transition: all .15s;
+}
+.btn-accent:hover {
+    background: var(--accent-hover);
+    color: #fff;
+    box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: .5rem 1rem;
+    font-size: .875rem;
+    transition: all .15s;
+}
+.btn-ghost:hover {
+    background: rgba(255,255,255,.06);
+    color: var(--text-primary);
+    border-color: rgba(255,255,255,.15);
+}
+
+/* Override Bootstrap buttons in dark theme */
+.btn-primary { background: var(--accent); border-color: var(--accent); }
+.btn-primary:hover, .btn-primary:focus { background: var(--accent-hover); border-color: var(--accent-hover); box-shadow: 0 4px 12px var(--accent-glow); }
+.btn-success { background: var(--success); border-color: var(--success); }
+.btn-danger { background: var(--danger); border-color: var(--danger); }
+.btn-outline-primary { color: var(--accent); border-color: var(--accent); }
+.btn-outline-primary:hover { background: var(--accent); color: #fff; }
+.btn-outline-secondary { color: var(--text-secondary); border-color: var(--border-color); }
+.btn-outline-secondary:hover { background: rgba(255,255,255,.08); color: var(--text-primary); border-color: rgba(255,255,255,.15); }
+.btn-outline-danger { color: var(--danger); border-color: var(--danger); }
+.btn-outline-danger:hover { background: var(--danger); color: #fff; }
+.btn-outline-light { color: var(--text-secondary); border-color: var(--border-color); }
+.btn-outline-light:hover { background: rgba(255,255,255,.06); color: var(--text-primary); }
+
+.btn-outline-info { color: var(--accent); border-color: var(--accent); }
+.btn-outline-info:hover { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--bg-card-hover); border-color: var(--border-color); color: var(--text-primary); }
+.btn-secondary:hover { background: var(--border-color); border-color: var(--border-color); color: var(--text-primary); }
+.btn-warning { background: var(--warning); border-color: var(--warning); color: #000; }
+
+/* ── Forms ── */
+.form-control, .form-select {
+    background-color: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 8px;
+}
+.form-control:focus, .form-select:focus {
+    background-color: var(--bg-input);
+    border-color: var(--accent);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.form-control::placeholder { color: var(--text-muted); }
+/* Flèche du select adaptée au thème sombre (on écrase seulement la couleur de l'icône) */
+.form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238e9baa' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+/* Options du select : fond sombre même dans la liste native */
+option {
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+}
+option:disabled {
+    color: var(--text-muted);
+}
+.form-label { color: var(--text-secondary); font-size: .85rem; font-weight: 500; }
+.form-check-input {
+    background-color: var(--bg-input);
+    border-color: var(--border-color);
+}
+.form-check-input:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+.form-check-label { color: var(--text-secondary); }
+
+/* ── Tables ── */
+.table {
+    color: var(--text-primary);
+    /* Surcharge des CSS vars Bootstrap 5 pour le thème sombre */
+    --bs-table-color: var(--text-primary);
+    --bs-table-bg: transparent;
+    --bs-table-border-color: var(--border-color);
+    --bs-table-hover-bg: rgba(255,255,255,.04);
+    --bs-table-hover-color: var(--text-primary);
+    --bs-table-striped-bg: rgba(255,255,255,.02);
+    --bs-table-striped-color: var(--text-primary);
+}
+.table th {
+    font-weight: 600;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--text-secondary);
+    border-bottom-color: var(--border-color);
+}
+.table td { border-bottom-color: var(--border-color); vertical-align: middle; }
+.table-hover > tbody > tr:hover > * {
+    background-color: rgba(255,255,255,.04);
+    color: var(--text-primary);
+}
+
+/* ── Alerts ── */
+.alert {
+    border-radius: 10px;
+    border: none;
+}
+.alert-info { background: rgba(88,101,242,.12); color: var(--accent); }
+.alert-success { background: rgba(59,165,92,.12); color: var(--success); }
+.alert-warning { background: rgba(250,166,26,.12); color: var(--warning); }
+.alert-danger { background: rgba(237,66,69,.12); color: var(--danger); }
+
+/* Bootstrap text-muted override for dark theme */
+.text-muted { color: var(--text-secondary) !important; }
+
+/* ── Badges ── */
+.badge.bg-primary { background: var(--accent) !important; }
+.badge.bg-danger { background: var(--danger) !important; }
+.badge.bg-success { background: var(--success) !important; }
+.badge.bg-warning { background: var(--warning) !important; color: #000 !important; }
+.badge.bg-secondary { background: var(--bg-card-hover) !important; color: var(--text-primary) !important; }
+.badge.bg-info { background: var(--accent) !important; }
+.badge.bg-light { background: var(--bg-input) !important; color: var(--text-secondary) !important; }
+
+/* ── Modals ── */
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    color: var(--text-primary);
+}
+.modal-header { border-bottom-color: var(--border-color); }
+.modal-footer { border-top-color: var(--border-color); }
+.btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
+/* ── Dropdown ── */
+.dropdown-menu {
+    background: var(--bg-darker);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: .25rem;
+}
+.dropdown-item {
+    color: var(--text-secondary);
+    border-radius: 6px;
+    font-size: .85rem;
+    padding: .4rem .75rem;
+}
+.dropdown-item:hover { background: rgba(255,255,255,.06); color: var(--text-primary); }
+.dropdown-item.text-danger { color: var(--danger) !important; }
+.dropdown-item.text-danger:hover { background: rgba(237,66,69,.1); }
+.dropdown-divider { border-color: var(--border-color); }
+
+/* ── Stat Cards (Dashboard) ── */
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: .2s;
+}
+.stat-card:hover { border-color: var(--accent); }
+.stat-card .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.stat-card .stat-label {
+    font-size: .78rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-top: .25rem;
+}
+.stat-card .stat-icon {
+    font-size: 1.4rem;
+    margin-bottom: .5rem;
+}
+.stat-card .stat-icon.text-accent { color: var(--accent); }
+.stat-card .stat-icon.text-success { color: var(--success); }
+.stat-card .stat-icon.text-warning { color: var(--warning); }
+
+/* ── Tenant Card ── */
+.tenant-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    transition: .2s;
+}
+.tenant-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* ── Login Page ── */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-darker);
+}
+.login-box {
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem;
+}
+.login-logo {
+    width: 64px;
+    height: 64px;
+    background: var(--accent);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.6rem;
+    margin: 0 auto 1rem;
+}
+.login-box h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-primary);
+    margin-bottom: .25rem;
+}
+.login-box .login-subtitle {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: .875rem;
+    margin-bottom: 1.5rem;
+}
+.login-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.5rem;
+}
+
+/* Tabs override for login */
+.nav-tabs-dark {
+    border-bottom: 1px solid var(--border-color);
+    gap: 0;
+}
+.nav-tabs-dark .nav-link {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    padding: .6rem 1rem;
+    font-size: .85rem;
+    font-weight: 500;
+    border-radius: 0;
+}
+.nav-tabs-dark .nav-link:hover { color: var(--text-secondary); }
+.nav-tabs-dark .nav-link.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: transparent;
+}
+
+/* ── QR Scanner ── */
+#qr-reader {
+    border-radius: 10px;
+    overflow: hidden;
+    min-height: 50px;
+    background: var(--bg-input);
+}
+#qr-reader video { border-radius: 10px; }
+
+/* ── Export ── */
+.export-card {
+    border-radius: 14px;
+}
+.qr-code-container svg {
+    max-width: 200px;
+    height: auto;
+}
+
+/* ── Empty state ── */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+}
+.empty-state .empty-icon {
+    font-size: 3rem;
+    margin-bottom: .75rem;
+    opacity: .4;
+}
+.empty-state p { font-size: .9rem; }
+
+/* ── Nav pills for tenant selector ── */
+.tenant-selector .form-select {
+    max-width: 260px;
+}
+
+/* ── Tenant Filter Bar (OTP page) ── */
+.tenant-filter-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.tenant-pills {
+    display: flex;
+    gap: .4rem;
+    flex-wrap: nowrap;
+}
+.tenant-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    padding: .4rem .85rem;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: .8rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all .15s;
+}
+.tenant-pill:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+.tenant-pill.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+.tenant-pill i {
+    font-size: .75rem;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Print ── */
+@media print {
+    .app-sidebar, .btn, .form-control, .form-select, .alert, .modal, .sidebar-toggle { display: none !important; }
+    .app-main { margin-left: 0 !important; }
+    .card { break-inside: avoid; }
+    body { background: white; color: #000; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .app-sidebar { transform: translateX(-100%); }
+    .app-sidebar.open { transform: translateX(0); }
+    .sidebar-toggle { display: flex; }
+    .app-main { margin-left: 0; padding: 1rem; padding-top: 3.5rem; }
+    .otp-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .otp-account .otp-value { font-size: 1.1rem; letter-spacing: 2px; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 480px) {
+    .otp-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

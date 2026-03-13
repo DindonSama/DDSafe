@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DDSafe OTP Viewer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>DDSafe OTP Viewer</h1>
+    </header>
+
+    <footer>
+      <button id="refreshBtn" type="button">Rafraichir</button>
+      <button id="openAppBtn" type="button">Ouvrir l'app</button>
+      <button id="checkUpdateBtn" type="button">Verifier MAJ</button>
+      <button id="openOptionsBtn" type="button">Options</button>
+    </footer>
+
+    <section id="updateBanner" class="update-banner" hidden></section>
+
+    <section id="status" class="status">Chargement...</section>
+
+    <section class="search">
+      <div class="search-row">
+        <input id="searchInput" type="text" placeholder="Rechercher..." autofocus>
+        <button id="searchBtn" type="button">&#x1F50D;</button>
+      </div>
+    </section>
+
+    <section id="list" class="list" hidden></section>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

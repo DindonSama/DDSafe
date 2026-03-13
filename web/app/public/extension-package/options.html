@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Options DDSafe OTP Viewer</title>
+  <style>
+    body { font-family: "Segoe UI", Tahoma, sans-serif; margin: 24px; }
+    .wrap { max-width: 640px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #c2c8d0; }
+    button { margin-top: 12px; padding: 10px 14px; border-radius: 8px; border: 1px solid #365d8c; background: #3b6ea5; color: #fff; }
+    .msg { margin-top: 8px; color: #1f6f43; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>DDSafe OTP Viewer - Options</h1>
+    <p>Extension en lecture seule. Definis l'URL de ton application DDSafe.</p>
+
+    <label for="appUrl">URL DDSafe</label>
+    <input id="appUrl" type="url" placeholder="http://localhost:8080">
+
+    <button id="saveBtn" type="button">Enregistrer</button>
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

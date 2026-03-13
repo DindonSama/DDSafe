@@ -1,0 +1,5 @@
+email,role
+john.doe@company.com,member
+manager@company.com,admin
+reader@company.com,viewer
+newuser@company.com,member

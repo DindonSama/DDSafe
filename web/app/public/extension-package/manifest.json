@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "DDSafe OTP Viewer (Read Only)",
+  "description": "Read-only viewer for OTP codes displayed in DDSafe.",
+  "version": "0.1.1",
+  "action": {
+    "default_title": "DDSafe OTP Viewer",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["http://*/*", "https://*/*"]
+}

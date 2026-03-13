@@ -1,0 +1,59 @@
+services:
+  pb_2fa:
+    image: ghcr.io/muchobien/pocketbase:0.36
+    environment:
+      PB_ADMIN_EMAIL: "${PB_ADMIN_EMAIL:-admin@admin.com}"
+      PB_ADMIN_PASSWORD: "${PB_ADMIN_PASSWORD:-Admin12345!}"
+    volumes:
+      - ./pb_data:/pb_data
+    ports:
+      - "${PB_PORT:-8090}:8090"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8090/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+  php:
+    image: php:8.2-apache
+    volumes:
+      - ./web/app:/var/www/app
+      - ./web/scripts/php-start.sh:/start.sh:ro
+      - ./web/composer:/usr/local/bin/composer_cache
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      POCKETBASE_URL: "http://pb_2fa:8090"
+      PB_ADMIN_EMAIL: "${PB_ADMIN_EMAIL:-admin@admin.com}"
+      PB_ADMIN_PASSWORD: "${PB_ADMIN_PASSWORD:-Admin12345!}"
+      LDAP_ENABLED: "${LDAP_ENABLED:-false}"
+      LDAP_HOST: "${LDAP_HOST:-}"
+      LDAP_PORT: "${LDAP_PORT:-389}"
+      LDAP_BASE_DN: "${LDAP_BASE_DN:-}"
+      LDAP_DOMAIN: "${LDAP_DOMAIN:-}"
+      LDAP_USE_SSL: "${LDAP_USE_SSL:-false}"
+      LDAP_BIND_DN: "${LDAP_BIND_DN:-}"
+      LDAP_BIND_PASSWORD: "${LDAP_BIND_PASSWORD:-}"
+      LDAP_SEARCH_FILTER: "${LDAP_SEARCH_FILTER:-}"
+      OIDC_ENABLED: "${OIDC_ENABLED:-false}"
+      OIDC_PROVIDER_URL: "${OIDC_PROVIDER_URL:-}"
+      OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-}"
+      OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:-}"
+      OIDC_REDIRECT_URI: "${OIDC_REDIRECT_URI:-}"
+      OIDC_SCOPES: "${OIDC_SCOPES:-openid profile email}"
+      OIDC_USERNAME_CLAIM: "${OIDC_USERNAME_CLAIM:-preferred_username}"
+      OIDC_BUTTON_LABEL: "${OIDC_BUTTON_LABEL:-Se connecter via SSO}"
+      APP_SECRET: "${APP_SECRET:-change-me-with-a-long-random-string-here}"
+      APP_NAME: "${APP_NAME:-DDSafe}"
+      PERSONAL_CODES_ENABLED: "${PERSONAL_CODES_ENABLED:-false}"
+      APP_ADMIN_EMAIL: "${APP_ADMIN_EMAIL:-admin@2fa-manager.local}"
+      APP_ADMIN_PASSWORD: "${APP_ADMIN_PASSWORD:-admin123}"
+      APP_ADMIN_NAME: "${APP_ADMIN_NAME:-Administrateur}"
+      EXTENSION_APP_URL: "${EXTENSION_APP_URL:-http://localhost:8080}"
+    depends_on:
+      pb_2fa:
+        condition: service_healthy
+    entrypoint: ["bash", "/start.sh"]
+    restart: unless-stopped

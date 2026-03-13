@@ -1,0 +1,21 @@
+# Secrets
+.env
+
+# Données PocketBase (bind mount)
+pb_data/
+
+# Cache Composer (bind mount)
+web/composer/
+
+# Dépendances PHP
+web/app/vendor/
+
+# Fichiers système
+.DS_Store
+*.swp
+*.bak
+*.tmp
+*.log
+
+# Docker
+docker-compose.override.yml
