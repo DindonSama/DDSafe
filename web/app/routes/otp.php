@@ -293,13 +293,24 @@ foreach ($userTenants as $tenant) {
 $canCreateOtp = !empty($currentUser['is_app_admin']) || !empty($otpWritableTenants);
 $currentTenantId = $_SESSION['current_tenant'] ?? null;
 $search          = trim($_GET['q'] ?? '');
+$scopeParam      = strtolower(trim((string)($_GET['scope'] ?? 'all')));
+$currentScope    = $scopeParam === 'personal' ? 'personal' : 'all';
+$personalEnabled = (bool)($config['personal_codes_enabled'] ?? false);
 
-$personalCodes = ($config['personal_codes_enabled'] ?? false)
+// If a tenant is selected, tenant view takes precedence and personal codes stay hidden.
+if (!empty($currentTenantId)) {
+    $currentScope = 'all';
+}
+
+$showPersonalCodes = $personalEnabled && empty($currentTenantId);
+$showTenantCodes   = $currentScope !== 'personal';
+
+$personalCodes = $showPersonalCodes
     ? $otpManager->getPersonalCodes($currentUser['id'], $search)
     : [];
 $tenantCodes   = [];
 $currentTenantName = '';
-if ($currentTenantId) {
+if ($showTenantCodes && $currentTenantId) {
     $tenantCodes = $otpManager->getTenantCodes($currentTenantId, $search);
     foreach ($userTenants as $t) {
         if ($t['id'] === $currentTenantId) {
@@ -307,7 +318,7 @@ if ($currentTenantId) {
             break;
         }
     }
-} else {
+} elseif ($showTenantCodes) {
     // Show all tenants by default
     foreach ($userTenants as $t) {
         $codes = $otpManager->getTenantCodes($t['id'], $search);

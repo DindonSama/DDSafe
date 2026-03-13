@@ -8,6 +8,9 @@
 /** @var string $currentTenantId */
 /** @var string $currentTenantName */
 /** @var string $search */
+/** @var string $currentScope */
+/** @var bool $showPersonalCodes */
+/** @var bool $showTenantCodes */
 $iconColors = ['#5865f2','#3ba55c','#ed4245','#faa61a','#eb459e','#57f287','#5dadec','#fee75c'];
 ob_start();
 ?>
@@ -33,16 +36,22 @@ ob_start();
 <div class="tenant-filter-bar mb-3">
     <form method="POST" action="/tenants/select" id="tenantFilterForm">
         <?= csrfField() ?>
-        <input type="hidden" name="redirect" value="/otp">
+        <input type="hidden" name="redirect" id="tenantFilterRedirect" value="/otp">
         <input type="hidden" name="tenant_id" id="tenantFilterValue" value="">
         <div class="tenant-pills">
             <button type="button" class="tenant-pill <?= empty($currentTenantId) ? 'active' : '' ?>"
-                    onclick="document.getElementById('tenantFilterValue').value='';document.getElementById('tenantFilterForm').submit();">
+                    onclick="document.getElementById('tenantFilterValue').value='';document.getElementById('tenantFilterRedirect').value='/otp';document.getElementById('tenantFilterForm').submit();">
                 <i class="bi bi-collection me-1"></i>Tous
             </button>
+            <?php if ($config['personal_codes_enabled'] ?? false): ?>
+                <button type="button" class="tenant-pill <?= empty($currentTenantId) && (($currentScope ?? 'all') === 'personal') ? 'active' : '' ?>"
+                        onclick="document.getElementById('tenantFilterValue').value='';document.getElementById('tenantFilterRedirect').value='/otp?scope=personal';document.getElementById('tenantFilterForm').submit();">
+                    <i class="bi bi-person-lock me-1"></i>Personnels
+                </button>
+            <?php endif; ?>
             <?php foreach ($userTenants as $t): ?>
                 <button type="button" class="tenant-pill <?= ($t['id'] === $currentTenantId) ? 'active' : '' ?>"
-                        onclick="document.getElementById('tenantFilterValue').value='<?= htmlspecialchars($t['id']) ?>';document.getElementById('tenantFilterForm').submit();">
+                        onclick="document.getElementById('tenantFilterValue').value='<?= htmlspecialchars($t['id']) ?>';document.getElementById('tenantFilterRedirect').value='/otp';document.getElementById('tenantFilterForm').submit();">
                     <i class="bi bi-building me-1"></i><?= htmlspecialchars($t['name']) ?>
                 </button>
             <?php endforeach; ?>
@@ -57,7 +66,7 @@ ob_start();
 </div>
 
 <!-- Personal codes -->
-    <?php if ($config['personal_codes_enabled'] ?? false): ?>
+    <?php if ($showPersonalCodes): ?>
     <div class="section-label">
         <i class="bi bi-person-lock"></i> Mes codes personnels
         <span class="badge bg-secondary"><?= count($personalCodes) ?></span>
@@ -140,7 +149,7 @@ ob_start();
     <?php endif; ?>
 
     <!-- Tenant codes -->
-    <?php if (!empty($tenantCodes)): ?>
+    <?php if ($showTenantCodes && !empty($tenantCodes)): ?>
     <div class="section-label mt-4">
         <i class="bi bi-building"></i> <?= htmlspecialchars($currentTenantName) ?>
         <span class="badge bg-success"><?= count($tenantCodes) ?></span>
