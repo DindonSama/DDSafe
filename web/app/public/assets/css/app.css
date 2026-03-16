@@ -220,7 +220,7 @@ a:hover { color: var(--accent-hover); }
 /* ── OTP Account Cards (2FAuth style) ── */
 .otp-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: .75rem;
 }
 
@@ -252,6 +252,36 @@ a:hover { color: var(--accent-hover); }
     border-left: 3px solid var(--success);
 }
 
+/* Issuer avatar */
+.account-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: .45rem;
+    flex-shrink: 0;
+}
+.account-avatar.av-icon {
+    background: rgba(255,255,255,.06);
+}
+.account-avatar.av-icon i {
+    font-size: 1.65rem;
+    color: var(--text-primary);
+    opacity: .88;
+}
+.account-avatar.av-letter {
+    background: var(--av-color, #5865f2);
+}
+.account-avatar.av-letter span {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+    text-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
+
 .otp-account .account-name {
     font-weight: 600;
     font-size: .8rem;
@@ -266,8 +296,23 @@ a:hover { color: var(--accent-hover); }
     color: var(--text-muted);
     margin-bottom: .5rem;
 }
+.otp-account .account-group {
+    font-size: .68rem;
+    color: var(--accent);
+    margin: -.2rem 0 .45rem;
+    display: inline-flex;
+    align-items: center;
+    gap: .2rem;
+}
 
 /* OTP code display */
+.otp-code-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    width: 100%;
+}
 .otp-account .otp-value {
     font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
     font-size: 1.3rem;
@@ -286,7 +331,7 @@ a:hover { color: var(--accent-hover); }
     position: relative;
     width: 30px;
     height: 30px;
-    margin-top: .4rem;
+    flex-shrink: 0;
 }
 .countdown-ring svg {
     transform: rotate(-90deg);
@@ -737,6 +782,122 @@ option:disabled {
     max-width: 260px;
 }
 
+/* ── OTP Sidebar Folder Navigation ── */
+.otp-layout {
+    display: flex;
+    gap: 1.25rem;
+    align-items: flex-start;
+}
+.folder-sidebar {
+    flex-shrink: 0;
+    width: 210px;
+    background: rgba(255,255,255,.02);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: .5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+    position: sticky;
+    top: 1rem;
+}
+.folder-sidebar-row {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+.folder-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .5rem .75rem;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: .88rem;
+    transition: all .15s;
+    flex: 1;
+    min-width: 0;
+}
+.folder-sidebar-item:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+.folder-sidebar-item.active {
+    background: rgba(88,101,242,.15);
+    color: var(--accent);
+    font-weight: 600;
+}
+.folder-sidebar-item i { font-size: .95rem; flex-shrink: 0; }
+.folder-delete-form {
+    margin: 0;
+    flex-shrink: 0;
+}
+.folder-sidebar-edit {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all .15s;
+    flex-shrink: 0;
+}
+.folder-sidebar-edit:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(88,101,242,.08);
+}
+.folder-sidebar-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.folder-sidebar-badge {
+    flex-shrink: 0;
+    background: rgba(255,255,255,.07);
+    color: var(--text-muted);
+    font-size: .72rem;
+    padding: .1rem .4rem;
+    border-radius: 999px;
+    min-width: 1.4rem;
+    text-align: center;
+}
+.folder-sidebar-item.active .folder-sidebar-badge {
+    background: rgba(88,101,242,.2);
+    color: var(--accent);
+}
+.folder-sidebar-new {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .45rem .75rem;
+    border-radius: 10px;
+    background: none;
+    border: 1px dashed var(--border-color);
+    color: var(--text-muted);
+    font-size: .83rem;
+    cursor: pointer;
+    width: 100%;
+    transition: all .15s;
+    margin-top: .35rem;
+}
+.folder-sidebar-new:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.otp-content { flex: 1; min-width: 0; }
+@media (max-width: 640px) {
+    .otp-layout { flex-direction: column; }
+    .folder-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; position: static; gap: .4rem; }
+}
+
 /* ── Tenant Filter Bar (OTP page) ── */
 .tenant-filter-bar {
     overflow-x: auto;
@@ -796,7 +957,7 @@ option:disabled {
     .app-sidebar.open { transform: translateX(0); }
     .sidebar-toggle { display: flex; }
     .app-main { margin-left: 0; padding: 1rem; padding-top: 3.5rem; }
-    .otp-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .otp-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
     .otp-account .otp-value { font-size: 1.1rem; letter-spacing: 2px; }
     .page-header { flex-direction: column; align-items: flex-start; }
 }

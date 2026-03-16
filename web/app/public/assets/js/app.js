@@ -117,6 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const editOtpDeleteBtn = document.getElementById('edit-otp-delete-btn');
     const editDeleteOtpIdInput = document.getElementById('edit-delete-otp-id');
     const editOtpIdInput = document.getElementById('edit-otp-id');
+    const editOtpGroupInput = document.getElementById('edit-otp-group');
     const deleteOtpForm = document.getElementById('deleteOtpForm');
 
     function setSecretVisibility(visible) {
@@ -142,6 +143,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (editDeleteOtpIdInput) {
                 editDeleteOtpIdInput.value = '';
             }
+            if (editOtpGroupInput) {
+                editOtpGroupInput.value = '';
+            }
         });
     }
 
@@ -156,6 +160,9 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('edit-otp-algorithm').value = (btn.dataset.algorithm || 'SHA1').toUpperCase();
         document.getElementById('edit-otp-digits').value = String(btn.dataset.digits || '6');
         document.getElementById('edit-otp-period').value = String(btn.dataset.period || '30');
+        if (editOtpGroupInput) {
+            editOtpGroupInput.value = btn.dataset.group || '';
+        }
         if (editDeleteOtpIdInput) {
             editDeleteOtpIdInput.value = btn.dataset.id || '';
         }
@@ -192,18 +199,52 @@ document.addEventListener('DOMContentLoaded', function () {
         modal.show();
     });
 
-    // ── Live Search (client-side filtering) ─────────────────────
+    // ── Live Search + Issuer Filter (client-side filtering) ─────
     const otpSearch = document.getElementById('otp-search');
-    if (otpSearch) {
-        otpSearch.addEventListener('input', function () {
-            const q = this.value.toLowerCase().trim();
-            document.querySelectorAll('.otp-item').forEach(item => {
-                const name = item.dataset.name || '';
-                const issuer = item.dataset.issuer || '';
-                const match = q === '' || name.includes(q) || issuer.includes(q);
-                item.style.display = match ? '' : 'none';
-            });
+    const otpIssuerFilter = document.getElementById('otp-issuer-filter');
+
+    function applyOtpFilters() {
+        const q = (otpSearch?.value || '').toLowerCase().trim();
+        const issuerFilter = (otpIssuerFilter?.value || '').toLowerCase().trim();
+
+        document.querySelectorAll('.otp-item').forEach(item => {
+            const name = (item.dataset.name || '').toLowerCase();
+            const issuer = (item.dataset.issuer || '').toLowerCase();
+            const matchSearch = q === '' || name.includes(q) || issuer.includes(q);
+            const matchIssuer = issuerFilter === '' || issuer === issuerFilter;
+            item.style.display = matchSearch && matchIssuer ? '' : 'none';
         });
+    }
+
+    if (otpIssuerFilter) {
+        const formatIssuerLabel = (issuer) => {
+            const cleaned = (issuer || '').trim();
+            if (cleaned === '') return '';
+            return cleaned.charAt(0).toLocaleUpperCase('fr-FR') + cleaned.slice(1);
+        };
+
+        const issuers = new Set();
+        document.querySelectorAll('.otp-item').forEach(item => {
+            const rawIssuer = (item.dataset.issuer || '').trim();
+            if (rawIssuer !== '') {
+                issuers.add(rawIssuer);
+            }
+        });
+
+        Array.from(issuers)
+            .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+            .forEach(issuer => {
+                const option = document.createElement('option');
+                option.value = issuer.toLowerCase();
+                option.textContent = formatIssuerLabel(issuer);
+                otpIssuerFilter.appendChild(option);
+            });
+
+        otpIssuerFilter.addEventListener('change', applyOtpFilters);
+    }
+
+    if (otpSearch) {
+        otpSearch.addEventListener('input', applyOtpFilters);
     }
 
     const searchInputs = document.querySelectorAll('[data-live-search]');

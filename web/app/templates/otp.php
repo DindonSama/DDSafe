@@ -7,11 +7,81 @@
 /** @var bool $canCreateOtp */
 /** @var string $currentTenantId */
 /** @var string $currentTenantName */
+/** @var array $tenantGroups */
+/** @var array $tenantFolders */
+/** @var string $currentFolderId */
+/** @var string $currentFolderName */
+/** @var array $rootTenantCodes */
+/** @var bool $currentTenantCanManageOtp */
 /** @var string $search */
 /** @var string $currentScope */
 /** @var bool $showPersonalCodes */
 /** @var bool $showTenantCodes */
 $iconColors = ['#5865f2','#3ba55c','#ed4245','#faa61a','#eb459e','#57f287','#5dadec','#fee75c'];
+$otpReturnPath = !empty($currentFolderId) ? '/otp?folder=' . rawurlencode($currentFolderId) : '/otp';
+
+if (!function_exists('otpIssuerIcon')) {
+    function otpIssuerIcon(string $issuer): ?string {
+        if ($issuer === '') return null;
+        $k = strtolower($issuer);
+        static $map = [
+            'github'      => 'bi-github',
+            'gitlab'      => 'bi-gitlab',
+            'bitbucket'   => 'bi-bitbucket',
+            'google'      => 'bi-google',
+            'microsoft'   => 'bi-microsoft',
+            'windows'     => 'bi-windows',
+            'azure'       => 'bi-microsoft',
+            'apple'       => 'bi-apple',
+            'icloud'      => 'bi-apple',
+            'amazon'      => 'bi-amazon',
+            'aws'         => 'bi-amazon',
+            'discord'     => 'bi-discord',
+            'facebook'    => 'bi-facebook',
+            'meta'        => 'bi-meta',
+            'instagram'   => 'bi-instagram',
+            'twitter'     => 'bi-twitter-x',
+            'twitch'      => 'bi-twitch',
+            'youtube'     => 'bi-youtube',
+            'paypal'      => 'bi-paypal',
+            'steam'       => 'bi-steam',
+            'reddit'      => 'bi-reddit',
+            'slack'       => 'bi-slack',
+            'dropbox'     => 'bi-dropbox',
+            'docker'      => 'bi-docker',
+            'nintendo'    => 'bi-nintendo-switch',
+            'spotify'     => 'bi-spotify',
+            'linkedin'    => 'bi-linkedin',
+            'wordpress'   => 'bi-wordpress',
+            'whatsapp'    => 'bi-whatsapp',
+            'telegram'    => 'bi-telegram',
+            'signal'      => 'bi-signal',
+            'skype'       => 'bi-skype',
+            'stripe'      => 'bi-stripe',
+            'linux'       => 'bi-linux',
+            'android'     => 'bi-android2',
+            'snapchat'    => 'bi-snapchat',
+            'pinterest'   => 'bi-pinterest',
+            'cloudflare'  => 'bi-cloud-fill',
+            'proton'      => 'bi-envelope-fill',
+            'bitwarden'   => 'bi-shield-lock-fill',
+            'npm'         => 'bi-npm',
+        ];
+        foreach ($map as $keyword => $icon) {
+            if (str_contains($k, $keyword)) return $icon;
+        }
+        return null;
+    }
+
+    function otpIssuerColor(string $source, array $colors): string {
+        if (empty($colors)) return '#5865f2';
+        $hash = 0;
+        for ($i = 0, $len = strlen($source); $i < $len; $i++) {
+            $hash = (int)(($hash * 31 + ord($source[$i])) & 0x7FFFFFFF);
+        }
+        return $colors[$hash % count($colors)];
+    }
+}
 ob_start();
 ?>
 
@@ -59,10 +129,18 @@ ob_start();
     </form>
 </div>
 
-<div class="mb-3">
-    <label for="otp-search" class="visually-hidden">Rechercher un code OTP</label>
-    <input type="text" id="otp-search" class="form-control" placeholder="Rechercher un code OTP..."
-           value="<?= htmlspecialchars($search ?? '') ?>" autofocus>
+<div class="row g-2 mb-3">
+    <div class="col-md-8">
+        <label for="otp-search" class="visually-hidden">Rechercher un code OTP</label>
+        <input type="text" id="otp-search" class="form-control" placeholder="Rechercher un code OTP..."
+               value="<?= htmlspecialchars($search ?? '') ?>" autofocus>
+    </div>
+    <div class="col-md-4">
+        <label for="otp-issuer-filter" class="visually-hidden">Filtrer par émetteur</label>
+        <select id="otp-issuer-filter" class="form-select">
+            <option value="">Tous les émetteurs</option>
+        </select>
+    </div>
 </div>
 
 <!-- Personal codes -->
@@ -80,8 +158,9 @@ ob_start();
     <?php else: ?>
         <div class="otp-grid mb-4" id="personal-codes">
             <?php foreach ($personalCodes as $i => $code):
-                $color = $iconColors[$i % count($iconColors)];
-                $letter = strtoupper(mb_substr($code['issuer'] ?: $code['name'], 0, 1));
+                $avatarIcon   = otpIssuerIcon((string)($code['issuer'] ?? ''));
+                $avatarLetter = strtoupper(mb_substr($code['issuer'] ?: $code['name'], 0, 1));
+                $avatarColor  = $avatarIcon ? '' : otpIssuerColor($code['issuer'] ?: $code['name'], $iconColors);
             ?>
                 <div class="otp-account otp-item"
                      role="button"
@@ -119,18 +198,29 @@ ob_start();
                         </div>
                     </div>
 
+                    <div class="account-avatar <?= $avatarIcon ? 'av-icon' : 'av-letter' ?>"
+                         <?= $avatarColor ? 'style="--av-color:' . htmlspecialchars($avatarColor) . '"' : '' ?>>
+                        <?php if ($avatarIcon): ?>
+                            <i class="bi <?= $avatarIcon ?>"></i>
+                        <?php else: ?>
+                            <span><?= htmlspecialchars($avatarLetter) ?></span>
+                        <?php endif; ?>
+                    </div>
+
                     <div class="account-name"><?= htmlspecialchars($code['name']) ?></div>
                     <div class="account-issuer"><?= htmlspecialchars($code['issuer'] ?? '') ?>&nbsp;</div>
-                    <div class="otp-value" data-otp-id="<?= htmlspecialchars($code['id']) ?>">
-                        <span class="code-display">···  ···</span>
-                    </div>
-                    <div class="countdown-ring" data-timer-id="<?= htmlspecialchars($code['id']) ?>">
-                        <svg viewBox="0 0 36 36">
-                            <circle class="ring-bg" cx="18" cy="18" r="15.5"/>
-                            <circle class="ring-fg" cx="18" cy="18" r="15.5"
-                                    stroke-dasharray="97.39" stroke-dashoffset="0"/>
-                        </svg>
-                        <span class="ring-text">--</span>
+                    <div class="otp-code-row">
+                        <div class="countdown-ring" data-timer-id="<?= htmlspecialchars($code['id']) ?>">
+                            <svg viewBox="0 0 36 36">
+                                <circle class="ring-bg" cx="18" cy="18" r="15.5"/>
+                                <circle class="ring-fg" cx="18" cy="18" r="15.5"
+                                        stroke-dasharray="97.39" stroke-dashoffset="0"/>
+                            </svg>
+                            <span class="ring-text">--</span>
+                        </div>
+                        <div class="otp-value" data-otp-id="<?= htmlspecialchars($code['id']) ?>">
+                            <span class="code-display">···  ···</span>
+                        </div>
                     </div>
                     <div class="copy-toast"><i class="bi bi-check-lg me-1"></i>Copié</div>
                 </div>
@@ -140,17 +230,64 @@ ob_start();
     <?php endif; ?>
 
     <!-- Tenant codes -->
-    <?php if ($showTenantCodes && !empty($tenantCodes)): ?>
-    <div class="section-label mt-4">
-        <i class="bi bi-building"></i> <?= htmlspecialchars($currentTenantName) ?>
+    <?php if ($showTenantCodes): ?>
+    <?php if (!empty($currentTenantId)): ?>
+    <div class="otp-layout">
+        <nav class="folder-sidebar">
+            <a href="/otp" class="folder-sidebar-item <?= $currentFolderId === '' ? 'active' : '' ?>">
+                <i class="bi bi-house-fill"></i>
+                <span class="folder-sidebar-name">Racine</span>
+                <span class="folder-sidebar-badge"><?= count($rootTenantCodes) ?></span>
+            </a>
+            <?php foreach ($tenantFolders as $folder): ?>
+            <div class="folder-sidebar-row">
+                <a href="/otp?folder=<?= htmlspecialchars((string)($folder['id'] ?? '')) ?>"
+                   class="folder-sidebar-item <?= $currentFolderId === (string)($folder['id'] ?? '') ? 'active' : '' ?>">
+                    <i class="bi bi-folder-fill"></i>
+                    <span class="folder-sidebar-name"><?= htmlspecialchars((string)($folder['name'] ?? 'Dossier')) ?></span>
+                    <span class="folder-sidebar-badge"><?= (int)($folder['code_count'] ?? 0) ?></span>
+                </a>
+                <?php if ($currentTenantCanManageOtp): ?>
+                <button type="button" class="folder-sidebar-edit"
+                        title="Modifier le dossier"
+                        aria-label="Modifier le dossier"
+                        data-folder-id="<?= htmlspecialchars((string)($folder['id'] ?? '')) ?>"
+                        data-folder-name="<?= htmlspecialchars((string)($folder['name'] ?? '')) ?>"
+                        onclick="openEditGroupModal(this)">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+            <?php if ($currentTenantCanManageOtp): ?>
+            <button class="folder-sidebar-new" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                <i class="bi bi-folder-plus"></i>
+                <span>Nouveau dossier</span>
+            </button>
+            <?php endif; ?>
+        </nav>
+        <div class="otp-content">
+    <?php endif; ?>
+    <?php if (!empty($tenantCodes)): ?>
+    <div class="section-label <?= !empty($currentTenantId) ? 'mb-3' : 'mt-4' ?>">
+        <i class="bi <?= !empty($currentTenantId) ? ($currentFolderId !== '' ? 'bi-folder2-open' : 'bi-house') : 'bi-building' ?>"></i>
+        <?php if (!empty($currentTenantId) && $currentFolderId !== ''): ?>
+            <?= htmlspecialchars($currentTenantName) ?> / <?= htmlspecialchars($currentFolderName) ?>
+        <?php elseif (!empty($currentTenantId)): ?>
+            <?= htmlspecialchars($currentTenantName) ?> / Racine
+        <?php else: ?>
+            <?= htmlspecialchars($currentTenantName) ?>
+        <?php endif; ?>
         <span class="badge bg-success"><?= count($tenantCodes) ?></span>
     </div>
 
     <div class="otp-grid mb-4" id="tenant-codes">
         <?php foreach ($tenantCodes as $i => $code):
-            $color = $iconColors[($i + 3) % count($iconColors)];
-            $letter = strtoupper(mb_substr($code['issuer'] ?: $code['name'], 0, 1));
+            $avatarIcon   = otpIssuerIcon((string)($code['issuer'] ?? ''));
+            $avatarLetter = strtoupper(mb_substr($code['issuer'] ?: $code['name'], 0, 1));
+            $avatarColor  = $avatarIcon ? '' : otpIssuerColor($code['issuer'] ?: $code['name'], $iconColors);
             $tenantId = (string)($code['tenant'] ?? '');
+            $groupName = (string)($code['expand']['group']['name'] ?? '');
             $canManageThisTenant = !empty($tenantManageOtpMap[$tenantId]);
             $isCodeOwner = (string)($code['owner'] ?? '') === (string)($currentUser['id'] ?? '');
             $canManageTenantCode = !empty($currentUser['is_app_admin']) || $canManageThisTenant || $isCodeOwner;
@@ -179,6 +316,7 @@ ob_start();
                                         data-algorithm="<?= htmlspecialchars($code['algorithm'] ?? 'SHA1') ?>"
                                         data-digits="<?= htmlspecialchars((string)($code['digits'] ?? 6)) ?>"
                                         data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>"
+                                        data-group="<?= htmlspecialchars((string)($code['group'] ?? '')) ?>"
                                         data-can-delete="1">
                                     <i class="bi bi-pencil me-2"></i>Modifier
                                 </button>
@@ -193,32 +331,131 @@ ob_start();
                     </div>
                 </div>
 
+                <div class="account-avatar <?= $avatarIcon ? 'av-icon' : 'av-letter' ?>"
+                     <?= $avatarColor ? 'style="--av-color:' . htmlspecialchars($avatarColor) . '"' : '' ?>>
+                    <?php if ($avatarIcon): ?>
+                        <i class="bi <?= $avatarIcon ?>"></i>
+                    <?php else: ?>
+                        <span><?= htmlspecialchars($avatarLetter) ?></span>
+                    <?php endif; ?>
+                </div>
+
                 <div class="account-name"><?= htmlspecialchars($code['name']) ?></div>
                 <div class="account-issuer"><?= htmlspecialchars($code['issuer'] ?? '') ?>&nbsp;</div>
-                <div class="otp-value" data-otp-id="<?= htmlspecialchars($code['id']) ?>">
-                    <span class="code-display">···  ···</span>
-                </div>
-                <div class="countdown-ring" data-timer-id="<?= htmlspecialchars($code['id']) ?>">
-                    <svg viewBox="0 0 36 36">
-                        <circle class="ring-bg" cx="18" cy="18" r="15.5"/>
-                        <circle class="ring-fg" cx="18" cy="18" r="15.5"
-                                stroke-dasharray="97.39" stroke-dashoffset="0"/>
-                    </svg>
-                    <span class="ring-text">--</span>
+                <?php if ($groupName !== ''): ?>
+                    <div class="account-group"><i class="bi bi-folder me-1"></i><?= htmlspecialchars($groupName) ?></div>
+                <?php endif; ?>
+                <div class="otp-code-row">
+                    <div class="countdown-ring" data-timer-id="<?= htmlspecialchars($code['id']) ?>">
+                        <svg viewBox="0 0 36 36">
+                            <circle class="ring-bg" cx="18" cy="18" r="15.5"/>
+                            <circle class="ring-fg" cx="18" cy="18" r="15.5"
+                                    stroke-dasharray="97.39" stroke-dashoffset="0"/>
+                        </svg>
+                        <span class="ring-text">--</span>
+                    </div>
+                    <div class="otp-value" data-otp-id="<?= htmlspecialchars($code['id']) ?>">
+                        <span class="code-display">···  ···</span>
+                    </div>
                 </div>
                 <div class="copy-toast"><i class="bi bi-check-lg me-1"></i>Copié</div>
             </div>
         <?php endforeach; ?>
     </div>
+    <?php elseif (!empty($currentTenantId)): ?>
+    <div class="empty-state">
+        <div class="empty-icon"><i class="bi bi-key"></i></div>
+        <p><?= $currentFolderId !== '' ? 'Aucun code OTP dans ce dossier.' : 'Aucun code OTP à la racine de ce tenant.' ?></p>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($currentTenantId)): ?>
+        </div><!-- .otp-content -->
+    </div><!-- .otp-layout -->
+    <?php endif; ?>
     <?php endif; ?>
 
 
 <?php if ($canCreateOtp): ?>
+<?php if (!empty($currentTenantId) && $currentTenantCanManageOtp): ?>
+<!-- Edit Folder Modal -->
+<div class="modal fade" id="editGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder2 me-2"></i>Modifier le dossier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="/otp/groups/rename" id="editGroupRenameForm">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="group_id" id="editGroupId">
+                    <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
+                    <div class="mb-0">
+                        <label class="form-label">Nom du dossier *</label>
+                        <input type="text" name="name" id="editGroupName" class="form-control" maxlength="120" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <form method="POST" action="/otp/groups/delete" id="editGroupDeleteForm" class="me-auto"
+                      onsubmit="return confirm('Supprimer ce dossier ? Les codes seront déplacés à la racine.');">
+                    <?= csrfField() ?>
+                    <input type="hidden" name="group_id" id="editGroupDeleteId">
+                    <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="bi bi-trash me-1"></i>Supprimer
+                    </button>
+                </form>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="submit" form="editGroupRenameForm" class="btn btn-accent">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+function openEditGroupModal(btn) {
+    var id   = btn.dataset.folderId   || '';
+    var name = btn.dataset.folderName || '';
+    document.getElementById('editGroupId').value       = id;
+    document.getElementById('editGroupName').value     = name;
+    document.getElementById('editGroupDeleteId').value = id;
+    var modal = new bootstrap.Modal(document.getElementById('editGroupModal'));
+    modal.show();
+}
+</script>
+<div class="modal fade" id="createGroupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" action="/otp/groups/create">
+            <?= csrfField() ?>
+            <input type="hidden" name="tenant_id" value="<?= htmlspecialchars((string)$currentTenantId) ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-folder-plus me-2"></i>Nouveau dossier</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-0">
+                        <label class="form-label">Nom du dossier *</label>
+                        <input type="text" name="name" class="form-control" maxlength="120" required placeholder="Ex: Infra, Clients, Build">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-accent">Créer</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- Import URI Modal -->
 <div class="modal fade" id="importUriModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" action="/otp/import" id="importUriForm">
             <?= csrfField() ?>
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-link-45deg me-2"></i>Importer par URI otpauth://</h5>
@@ -249,22 +486,39 @@ ob_start();
                         </div>
                     </div>
                     <?php endif; ?>
-                    <div class="mb-0" id="modal-tenant-select"<?php if (count($otpWritableTenants) === 1): ?> style="display:none"<?php endif; ?>>
-                        <label class="form-label">Tenant cible *</label>
-                        <select name="tenant" class="form-select"<?php if (count($otpWritableTenants) !== 1): ?> required<?php endif; ?> id="modal-tenant-sel">
-                            <?php if (count($otpWritableTenants) === 1): ?>
-                                <option value="<?= htmlspecialchars($otpWritableTenants[0]['id']) ?>" selected><?= htmlspecialchars($otpWritableTenants[0]['name']) ?></option>
-                            <?php else: ?>
-                                <option value="">-- Choisir --</option>
-                                <?php foreach ($otpWritableTenants as $t): ?>
-                                    <option value="<?= htmlspecialchars($t['id']) ?>"><?= htmlspecialchars($t['name']) ?></option>
+                    <?php if (!empty($currentTenantId)): ?>
+                        <input type="hidden" name="tenant" value="<?= htmlspecialchars((string)$currentTenantId) ?>">
+                        <div class="mb-3">
+                            <label class="form-label">Tenant cible</label>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($currentTenantName) ?>" readonly>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label">Dossier</label>
+                            <select name="group_id" class="form-select">
+                                <option value="">-- Racine --</option>
+                                <?php foreach ($tenantGroups as $group): ?>
+                                    <option value="<?= htmlspecialchars((string)$group['id']) ?>" <?= $currentFolderId === (string)$group['id'] ? 'selected' : '' ?>><?= htmlspecialchars($group['name'] ?? 'Dossier') ?></option>
                                 <?php endforeach; ?>
+                            </select>
+                        </div>
+                    <?php else: ?>
+                        <div class="mb-0" id="modal-tenant-select"<?php if (count($otpWritableTenants) === 1): ?> style="display:none"<?php endif; ?>>
+                            <label class="form-label">Tenant cible *</label>
+                            <select name="tenant" class="form-select"<?php if (count($otpWritableTenants) !== 1): ?> required<?php endif; ?> id="modal-tenant-sel">
+                                <?php if (count($otpWritableTenants) === 1): ?>
+                                    <option value="<?= htmlspecialchars($otpWritableTenants[0]['id']) ?>" selected><?= htmlspecialchars($otpWritableTenants[0]['name']) ?></option>
+                                <?php else: ?>
+                                    <option value="">-- Choisir --</option>
+                                    <?php foreach ($otpWritableTenants as $t): ?>
+                                        <option value="<?= htmlspecialchars($t['id']) ?>"><?= htmlspecialchars($t['name']) ?></option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                            <?php if (empty($otpWritableTenants)): ?>
+                                <small class="text-muted">Aucun tenant disponible en écriture OTP pour votre rôle.</small>
                             <?php endif; ?>
-                        </select>
-                        <?php if (empty($otpWritableTenants)): ?>
-                            <small class="text-muted">Aucun tenant disponible en écriture OTP pour votre rôle.</small>
-                        <?php endif; ?>
-                    </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -340,6 +594,7 @@ ob_start();
     <div class="modal-dialog">
         <form method="POST" action="/otp/add">
             <?= csrfField() ?>
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>Ajouter un code OTP</h5>
@@ -390,20 +645,37 @@ ob_start();
                         </div>
                     </div>
                     <?php endif; ?>
-                    <div class="mb-3" id="tenant-select-add">
-                        <label class="form-label">Tenant *</label>
-                        <select name="tenant" class="form-select" required>
-                            <option value="">-- Choisir un tenant --</option>
-                            <?php foreach ($otpWritableTenants as $t): ?>
-                                <option value="<?= htmlspecialchars($t['id']) ?>">
-                                    <?= htmlspecialchars($t['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if (empty($otpWritableTenants)): ?>
-                            <small class="text-muted">Aucun tenant avec permission d'ecriture OTP pour votre role.</small>
-                        <?php endif; ?>
-                    </div>
+                    <?php if (!empty($currentTenantId)): ?>
+                        <input type="hidden" name="tenant" value="<?= htmlspecialchars((string)$currentTenantId) ?>">
+                        <div class="mb-3">
+                            <label class="form-label">Tenant</label>
+                            <input type="text" class="form-control" value="<?= htmlspecialchars($currentTenantName) ?>" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Dossier</label>
+                            <select name="group_id" class="form-select">
+                                <option value="">-- Racine --</option>
+                                <?php foreach ($tenantGroups as $group): ?>
+                                    <option value="<?= htmlspecialchars((string)$group['id']) ?>" <?= $currentFolderId === (string)$group['id'] ? 'selected' : '' ?>><?= htmlspecialchars($group['name'] ?? 'Dossier') ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    <?php else: ?>
+                        <div class="mb-3" id="tenant-select-add">
+                            <label class="form-label">Tenant *</label>
+                            <select name="tenant" class="form-select" required>
+                                <option value="">-- Choisir un tenant --</option>
+                                <?php foreach ($otpWritableTenants as $t): ?>
+                                    <option value="<?= htmlspecialchars($t['id']) ?>">
+                                        <?= htmlspecialchars($t['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (empty($otpWritableTenants)): ?>
+                                <small class="text-muted">Aucun tenant avec permission d'ecriture OTP pour votre role.</small>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -423,6 +695,7 @@ ob_start();
         <form method="POST" action="/otp/edit" id="editOtpForm">
             <?= csrfField() ?>
             <input type="hidden" name="id" id="edit-otp-id">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier le code OTP</h5>
@@ -472,6 +745,17 @@ ob_start();
                             <input type="number" name="period" id="edit-otp-period" class="form-control" value="30" min="15" max="120">
                         </div>
                     </div>
+                    <?php if (!empty($currentTenantId)): ?>
+                    <div class="mb-0">
+                        <label class="form-label">Dossier</label>
+                        <select name="group_id" id="edit-otp-group" class="form-select">
+                            <option value="">-- Racine --</option>
+                            <?php foreach ($tenantGroups as $group): ?>
+                                <option value="<?= htmlspecialchars((string)$group['id']) ?>"><?= htmlspecialchars($group['name'] ?? 'Dossier') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-danger me-auto" id="edit-otp-delete-btn"
@@ -487,6 +771,7 @@ ob_start();
               onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce code OTP ?');">
             <?= csrfField() ?>
             <input type="hidden" name="id" id="edit-delete-otp-id">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
         </form>
     </div>
 </div>

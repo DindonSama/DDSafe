@@ -101,16 +101,134 @@ class OTPManager
 
     public function getTenantCodes(string $tenantId, string $search = ''): array
     {
-        $filter = "tenant='{$this->esc($tenantId)}' && is_personal=false && deleted!=true";
-        if ($search !== '') {
-            $filter .= " && (name~'{$this->esc($search)}' || issuer~'{$this->esc($search)}')";
-        }
-        $result = $this->pb->listRecords('otp_codes', [
-            'filter'  => $filter,
+        return $this->getTenantCodesByGroup($tenantId, null, $search);
+    }
+
+    public function getTenantCodesByGroup(string $tenantId, ?string $groupId = null, string $search = ''): array
+    {
+        $records = $this->listTenantCodeRecords($tenantId, $groupId, $search, 'group');
+        return array_map(fn($r) => $this->withDecryptedSecret($r), $records);
+    }
+
+    public function getTenantGroups(string $tenantId): array
+    {
+        $result = $this->pb->listRecords('otp_groups', [
+            'filter'  => "tenant='{$this->esc($tenantId)}'",
             'sort'    => 'name',
             'perPage' => 200,
         ]);
-        return array_map(fn($r) => $this->withDecryptedSecret($r), $result['items'] ?? []);
+        return $result['items'] ?? [];
+    }
+
+    public function getTenantFolderSummary(string $tenantId): array
+    {
+        $groups = $this->getTenantGroups($tenantId);
+        $records = $this->listTenantCodeRecords($tenantId, null, '');
+
+        $counts = [];
+        $rootCount = 0;
+        foreach ($records as $record) {
+            $groupId = (string)($record['group'] ?? '');
+            if ($groupId === '') {
+                $rootCount++;
+                continue;
+            }
+            $counts[$groupId] = ($counts[$groupId] ?? 0) + 1;
+        }
+
+        foreach ($groups as &$group) {
+            $group['code_count'] = $counts[(string)($group['id'] ?? '')] ?? 0;
+        }
+        unset($group);
+
+        return [
+            'folders' => $groups,
+            'root_count' => $rootCount,
+        ];
+    }
+
+    public function getGroupById(string $groupId): ?array
+    {
+        return $this->pb->getRecord('otp_groups', $groupId);
+    }
+
+    public function createGroup(string $tenantId, string $name, string $createdBy): array
+    {
+        return $this->pb->createRecord('otp_groups', [
+            'name'       => $name,
+            'tenant'     => $tenantId,
+            'created_by' => $createdBy,
+        ]);
+    }
+
+    public function renameGroup(string $groupId, string $tenantId, string $newName): void
+    {
+        $group = $this->pb->getRecord('otp_groups', $groupId);
+        if (!$group || (string)($group['tenant'] ?? '') !== $tenantId) {
+            throw new \RuntimeException('Dossier introuvable ou accès refusé.');
+        }
+        $this->pb->updateRecord('otp_groups', $groupId, ['name' => $newName]);
+    }
+
+    public function deleteGroup(string $groupId, string $tenantId): int
+    {
+        $movedCount = 0;
+        $page = 1;
+
+        do {
+            $result = $this->pb->listRecords('otp_codes', [
+                'filter'  => "tenant='{$this->esc($tenantId)}' && group='{$this->esc($groupId)}'",
+                'sort'    => 'name',
+                'perPage' => 200,
+                'page'    => $page,
+            ]);
+
+            $items = $result['items'] ?? [];
+            foreach ($items as $record) {
+                $id = (string)($record['id'] ?? '');
+                if ($id === '') {
+                    continue;
+                }
+                $this->pb->updateRecord('otp_codes', $id, ['group' => '']);
+                $movedCount++;
+            }
+
+            $totalPages = (int)($result['totalPages'] ?? $page);
+            $page++;
+        } while (!empty($items) && $page <= $totalPages);
+
+        if (!$this->pb->deleteRecord('otp_groups', $groupId)) {
+            throw new \RuntimeException('Suppression du dossier impossible.');
+        }
+
+        return $movedCount;
+    }
+
+    private function listTenantCodeRecords(string $tenantId, ?string $groupId = null, string $search = '', string $expand = ''): array
+    {
+        $filter = "tenant='{$this->esc($tenantId)}' && is_personal=false && deleted!=true";
+        if ($groupId !== null) {
+            if ($groupId === '') {
+                $filter .= ' && (group="" || group=null)';
+            } else {
+                $filter .= " && group='{$this->esc($groupId)}'";
+            }
+        }
+        if ($search !== '') {
+            $filter .= " && (name~'{$this->esc($search)}' || issuer~'{$this->esc($search)}')";
+        }
+
+        $params = [
+            'filter'  => $filter,
+            'sort'    => 'name',
+            'perPage' => 200,
+        ];
+        if ($expand !== '') {
+            $params['expand'] = $expand;
+        }
+
+        $result = $this->pb->listRecords('otp_codes', $params);
+        return $result['items'] ?? [];
     }
 
     // ── OTP code generation ─────────────────────────────────────

@@ -30,6 +30,11 @@ class Setup
             if ($col) {
                 // Ensure schema stays compatible after upgrades.
                 $this->extendUsersCollection();
+                $this->createCollectionIfMissing('otp_groups', [
+                    ['name' => 'name',       'type' => 'text',     'required' => true,  'min' => 1, 'max' => 120],
+                    ['name' => 'tenant',     'type' => 'relation', 'required' => true,  'collectionId' => $this->getCollectionId('tenants'), 'maxSelect' => 1, 'cascadeDelete' => true],
+                    ['name' => 'created_by', 'type' => 'relation', 'required' => false, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => false],
+                ]);
                 $this->migrateTenantsCollection();
                 $this->migrateTenantMembersCollection();
                 $this->migrateOtpCodesCollection();
@@ -77,6 +82,12 @@ class Setup
 
         $this->migrateTenantMembersCollection();
 
+        $this->createCollectionIfMissing('otp_groups', [
+            ['name' => 'name',       'type' => 'text',     'required' => true,  'min' => 1, 'max' => 120],
+            ['name' => 'tenant',     'type' => 'relation', 'required' => true,  'collectionId' => $this->getCollectionId('tenants'), 'maxSelect' => 1, 'cascadeDelete' => true],
+            ['name' => 'created_by', 'type' => 'relation', 'required' => false, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => false],
+        ]);
+
         $this->createCollectionIfMissing('otp_codes', [
             ['name' => 'name',        'type' => 'text',     'required' => true,  'min' => 1, 'max' => 200],
             ['name' => 'issuer',      'type' => 'text',     'required' => false],
@@ -88,6 +99,7 @@ class Setup
             ['name' => 'counter',     'type' => 'number',   'required' => false],
             ['name' => 'owner',       'type' => 'relation', 'required' => false, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => false],
             ['name' => 'tenant',      'type' => 'relation', 'required' => false, 'collectionId' => $this->getCollectionId('tenants'), 'maxSelect' => 1, 'cascadeDelete' => true],
+            ['name' => 'group',       'type' => 'relation', 'required' => false, 'collectionId' => $this->getCollectionId('otp_groups'), 'maxSelect' => 1, 'cascadeDelete' => false],
             ['name' => 'is_personal', 'type' => 'bool',     'required' => false],
             ['name' => 'deleted',     'type' => 'bool',     'required' => false],
             ['name' => 'deleted_by',  'type' => 'relation', 'required' => false, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => false],
@@ -301,7 +313,6 @@ class Setup
             $fields[] = ['name' => 'deleted_at', 'type' => 'text', 'required' => false];
             $changed = true;
         }
-
         if ($changed) {
             $this->pb->updateCollection($collection['id'], ['fields' => $fields]);
         }
@@ -339,6 +350,17 @@ class Setup
         }
         if (!in_array('deleted_at', $existing, true)) {
             $fields[] = ['name' => 'deleted_at', 'type' => 'text', 'required' => false];
+            $changed = true;
+        }
+        if (!in_array('group', $existing, true)) {
+            $fields[] = [
+                'name' => 'group',
+                'type' => 'relation',
+                'required' => false,
+                'collectionId' => $this->getCollectionId('otp_groups'),
+                'maxSelect' => 1,
+                'cascadeDelete' => false,
+            ];
             $changed = true;
         }
 
