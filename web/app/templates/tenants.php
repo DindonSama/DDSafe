@@ -6,9 +6,11 @@ ob_start();
 
 <div class="page-header">
     <h3><i class="bi bi-building me-2"></i><?= htmlspecialchars($pageTitle) ?></h3>
-    <button class="btn btn-accent btn-sm" data-bs-toggle="modal" data-bs-target="#createTenantModal">
-        <i class="bi bi-plus-lg me-1"></i>Créer un tenant
-    </button>
+    <?php if (!empty($canCreateTenant)): ?>
+        <button class="btn btn-accent btn-sm" data-bs-toggle="modal" data-bs-target="#createTenantModal">
+            <i class="bi bi-plus-lg me-1"></i>Créer un tenant
+        </button>
+    <?php endif; ?>
 </div>
 
 <?php if (empty($userTenants)): ?>
@@ -59,6 +61,7 @@ ob_start();
     </div>
 <?php endif; ?>
 
+<?php if (!empty($canCreateTenant)): ?>
 <!-- Create Tenant Modal -->
 <div class="modal fade" id="createTenantModal" tabindex="-1">
     <div class="modal-dialog">
@@ -89,6 +92,7 @@ ob_start();
         </form>
     </div>
 </div>
+<?php endif; ?>
 
 <?php
 $content = ob_get_clean();

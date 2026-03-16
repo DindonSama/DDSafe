@@ -12,7 +12,7 @@ ob_start();
 $canManageMembers = !empty($role) && PermissionManager::can($role, 'manage_members');
 $canManageRoles = !empty($role) && PermissionManager::can($role, 'manage_roles');
 $canEditSettings = !empty($role) && PermissionManager::can($role, 'edit_settings');
-$canDeleteTenant = !empty($role) && PermissionManager::can($role, 'delete_tenant');
+$canDeleteTenant = ($role === 'owner') || (($tenant['created_by'] ?? '') === ($currentUser['id'] ?? ''));
 $showActionsColumn = $canManageMembers || $canManageRoles;
 $roleHierarchy = PermissionManager::getRoleHierarchy($role);
 

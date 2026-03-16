@@ -23,6 +23,7 @@ ob_start();
                         <th>Email</th>
                         <th>Type</th>
                         <th>Rôle</th>
+                        <th>OTP perso</th>
                         <th>Tenants</th>
                         <th>Créé le</th>
                         <th>Actions</th>
@@ -63,6 +64,17 @@ ob_start();
                                         </button>
                                     </form>
                                 </div>
+                            </td>
+                            <td>
+                                <form method="POST" action="/admin/users/toggle-personal-otp" class="d-inline">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
+                                    <input type="hidden" name="allow_personal_otp"
+                                           value="<?= empty($u['allow_personal_otp']) ? '1' : '0' ?>">
+                                    <button type="submit" class="btn btn-sm <?= !empty($u['allow_personal_otp']) ? 'btn-success' : 'btn-outline-secondary' ?>">
+                                        <?= !empty($u['allow_personal_otp']) ? '<i class="bi bi-person-check-fill"></i> Autorisé' : '<i class="bi bi-person-x"></i> Refusé' ?>
+                                    </button>
+                                </form>
                             </td>
                             <td>
                                 <?php if ($totalTenants === 0): ?>

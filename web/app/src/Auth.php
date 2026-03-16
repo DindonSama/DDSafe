@@ -80,6 +80,7 @@ class Auth
                     'oidc_sub'        => $oidcUser['sub'],
                     'is_oidc_user'    => true,
                     'is_app_admin'    => false,
+                    'allow_personal_otp' => false,
                 ]);
             }
 
@@ -123,6 +124,7 @@ class Auth
                     'ad_username'     => $ldapUser['username'],
                     'is_ad_user'      => true,
                     'is_app_admin'    => false,
+                    'allow_personal_otp' => false,
                 ]);
             }
 
@@ -148,6 +150,7 @@ class Auth
             'email'          => $record['email'] ?? '',
             'name'           => $record['name'] ?? '',
             'is_app_admin'   => !empty($record['is_app_admin']),
+            'allow_personal_otp' => !empty($record['allow_personal_otp']),
             'is_ad_user'     => !empty($record['is_ad_user']),
             'is_oidc_user'   => !empty($record['is_oidc_user']),
             'auth_type'      => $authType,

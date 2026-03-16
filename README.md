@@ -6,7 +6,7 @@ Application web de gestion de codes OTP (TOTP/HOTP) avec support multi-tenant et
 
 - **Gestion de codes OTP** — Ajouter, modifier, supprimer des codes TOTP/HOTP
 - **Multi-tenant** — Les utilisateurs peuvent appartenir à plusieurs tenants avec des rôles distincts
-- **Codes personnels & partagés** — Codes OTP privés + codes partagés au niveau du tenant
+- **Codes personnels & partagés** — Codes OTP privés autorisables par utilisateur + codes partagés au niveau du tenant
 - **Import par QR code** — Scanner un QR code via la caméra ou charger une image
 - **Export QR code** — Exporter un ou plusieurs codes sous forme de QR codes imprimables
 - **Recherche rapide** — Filtrage instantané des codes par nom ou émetteur
@@ -99,6 +99,8 @@ Les utilisateurs AD sont automatiquement créés dans PocketBase à leur premiè
 | **Administrateur**| Accès complet : gestion des utilisateurs, tenants, corbeille |
 | **Utilisateur**   | Accès à ses codes OTP et aux tenants dont il est membre |
 
+> Les OTP personnels sont refusés par défaut et doivent être autorisés utilisateur par utilisateur depuis l'administration.
+
 ### Rôles par tenant
 
 | Rôle               | Voir les codes | Gérer les codes OTP | Gérer les membres | Paramètres tenant |
@@ -110,6 +112,7 @@ Les utilisateurs AD sont automatiquement créés dans PocketBase à leur premiè
 
 > Le rôle par défaut lors de l'ajout d'un membre est **Observateur**.
 > Un utilisateur **Propriétaire** ne peut pas modifier son propre rôle propriétaire.
+> Seul le **Propriétaire** d'un tenant peut supprimer ce tenant.
 
 ---
 

@@ -114,6 +114,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const editOtpSecretInput = document.getElementById('edit-otp-secret');
     const toggleEditOtpSecretBtn = document.getElementById('toggle-edit-otp-secret');
     const editOtpModalEl = document.getElementById('editOtpModal');
+    const editOtpDeleteBtn = document.getElementById('edit-otp-delete-btn');
+    const editDeleteOtpIdInput = document.getElementById('edit-delete-otp-id');
+    const editOtpIdInput = document.getElementById('edit-otp-id');
+    const deleteOtpForm = document.getElementById('deleteOtpForm');
 
     function setSecretVisibility(visible) {
         if (!editOtpSecretInput || !toggleEditOtpSecretBtn) return;
@@ -135,6 +139,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (editOtpModalEl) {
         editOtpModalEl.addEventListener('hidden.bs.modal', function () {
             setSecretVisibility(false);
+            if (editDeleteOtpIdInput) {
+                editDeleteOtpIdInput.value = '';
+            }
         });
     }
 
@@ -149,23 +156,28 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('edit-otp-algorithm').value = (btn.dataset.algorithm || 'SHA1').toUpperCase();
         document.getElementById('edit-otp-digits').value = String(btn.dataset.digits || '6');
         document.getElementById('edit-otp-period').value = String(btn.dataset.period || '30');
+        if (editDeleteOtpIdInput) {
+            editDeleteOtpIdInput.value = btn.dataset.id || '';
+        }
         setSecretVisibility(false);
 
         const modal = new bootstrap.Modal(document.getElementById('editOtpModal'));
         modal.show();
     }, true);
 
-    // ── Delete OTP Modal ────────────────────────────────────────
-    document.addEventListener('click', function (e) {
-        const btn = e.target.closest('.btn-delete-otp');
-        if (!btn) return;
-
-        document.getElementById('delete-otp-id').value = btn.dataset.id;
-        document.getElementById('delete-otp-name').textContent = btn.dataset.name;
-
-        const modal = new bootstrap.Modal(document.getElementById('deleteOtpModal'));
-        modal.show();
-    }, true);
+    if (editOtpDeleteBtn && deleteOtpForm) {
+        editOtpDeleteBtn.addEventListener('click', function () {
+            // Keep delete id in sync with the edited OTP even if hidden field got reset.
+            if (editDeleteOtpIdInput && !editDeleteOtpIdInput.value && editOtpIdInput) {
+                editDeleteOtpIdInput.value = editOtpIdInput.value || '';
+            }
+            if (!editDeleteOtpIdInput || !editDeleteOtpIdInput.value) {
+                alert('Impossible de supprimer: identifiant OTP manquant.');
+                return;
+            }
+            deleteOtpForm.requestSubmit();
+        });
+    }
 
     // ── Edit User Modal ─────────────────────────────────────────
     document.addEventListener('click', function (e) {

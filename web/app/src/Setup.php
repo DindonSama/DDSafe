@@ -18,10 +18,6 @@ class Setup
     /** Check whether PocketBase has been set up with our collections. */
     public function isInitialized(): bool
     {
-        if (!empty($_SESSION['pb_initialized'])) {
-            return true;
-        }
-
         try {
             $result = $this->pb->authAdmin(
                 $this->config['pocketbase']['admin_email'],
@@ -33,7 +29,10 @@ class Setup
             $col = $this->pb->getCollection('otp_codes');
             if ($col) {
                 // Ensure schema stays compatible after upgrades.
+                $this->extendUsersCollection();
+                $this->migrateTenantsCollection();
                 $this->migrateTenantMembersCollection();
+                $this->migrateOtpCodesCollection();
                 $_SESSION['pb_initialized'] = true;
                 return true;
             }
@@ -62,7 +61,12 @@ class Setup
             ['name' => 'name',        'type' => 'text',     'required' => true,  'min' => 1, 'max' => 200],
             ['name' => 'description',  'type' => 'text',     'required' => false],
             ['name' => 'created_by',   'type' => 'relation', 'required' => false, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => false],
+            ['name' => 'deleted',      'type' => 'bool',     'required' => false],
+            ['name' => 'deleted_by',   'type' => 'relation', 'required' => false, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => false],
+            ['name' => 'deleted_at',   'type' => 'text',     'required' => false],
         ]);
+
+        $this->migrateTenantsCollection();
 
         $this->createCollectionIfMissing('tenant_members', [
             ['name' => 'tenant', 'type' => 'relation', 'required' => true,  'collectionId' => $this->getCollectionId('tenants'), 'maxSelect' => 1, 'cascadeDelete' => true],
@@ -89,6 +93,8 @@ class Setup
             ['name' => 'deleted_by',  'type' => 'relation', 'required' => false, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => false],
             ['name' => 'deleted_at',  'type' => 'text',     'required' => false],
         ]);
+
+        $this->migrateOtpCodesCollection();
 
         // 4. Create default app user
         $this->createDefaultUser();
@@ -123,6 +129,9 @@ class Setup
         }
         if (!in_array('is_app_admin', $existing, true)) {
             $additions[] = ['name' => 'is_app_admin', 'type' => 'bool', 'required' => false];
+        }
+        if (!in_array('allow_personal_otp', $existing, true)) {
+            $additions[] = ['name' => 'allow_personal_otp', 'type' => 'bool', 'required' => false];
         }
         if ($additions) {
             $this->pb->updateCollection($users['id'], [
@@ -182,6 +191,7 @@ class Setup
             'passwordConfirm' => $admin['password'],
             'name'            => $admin['name'],
             'is_app_admin'    => true,
+            'allow_personal_otp' => false,
             'is_ad_user'      => false,
             'ad_username'     => '',
         ]);
@@ -254,6 +264,86 @@ class Setup
             }
         } catch (\Exception) {
             // Ignore if already clean or API error
+        }
+    }
+
+    private function migrateTenantsCollection(): void
+    {
+        $collection = $this->pb->getCollection('tenants');
+        if (!$collection) {
+            return;
+        }
+
+        $fields = $collection['fields'] ?? [];
+        if (!$fields) {
+            return;
+        }
+
+        $existing = array_column($fields, 'name');
+        $changed = false;
+
+        if (!in_array('deleted', $existing, true)) {
+            $fields[] = ['name' => 'deleted', 'type' => 'bool', 'required' => false];
+            $changed = true;
+        }
+        if (!in_array('deleted_by', $existing, true)) {
+            $fields[] = [
+                'name' => 'deleted_by',
+                'type' => 'relation',
+                'required' => false,
+                'collectionId' => $this->getUsersCollectionId(),
+                'maxSelect' => 1,
+                'cascadeDelete' => false,
+            ];
+            $changed = true;
+        }
+        if (!in_array('deleted_at', $existing, true)) {
+            $fields[] = ['name' => 'deleted_at', 'type' => 'text', 'required' => false];
+            $changed = true;
+        }
+
+        if ($changed) {
+            $this->pb->updateCollection($collection['id'], ['fields' => $fields]);
+        }
+    }
+
+    private function migrateOtpCodesCollection(): void
+    {
+        $collection = $this->pb->getCollection('otp_codes');
+        if (!$collection) {
+            return;
+        }
+
+        $fields = $collection['fields'] ?? [];
+        if (!$fields) {
+            return;
+        }
+
+        $existing = array_column($fields, 'name');
+        $changed = false;
+
+        if (!in_array('deleted', $existing, true)) {
+            $fields[] = ['name' => 'deleted', 'type' => 'bool', 'required' => false];
+            $changed = true;
+        }
+        if (!in_array('deleted_by', $existing, true)) {
+            $fields[] = [
+                'name' => 'deleted_by',
+                'type' => 'relation',
+                'required' => false,
+                'collectionId' => $this->getUsersCollectionId(),
+                'maxSelect' => 1,
+                'cascadeDelete' => false,
+            ];
+            $changed = true;
+        }
+        if (!in_array('deleted_at', $existing, true)) {
+            $fields[] = ['name' => 'deleted_at', 'type' => 'text', 'required' => false];
+            $changed = true;
+        }
+
+        if ($changed) {
+            $this->pb->updateCollection($collection['id'], ['fields' => $fields]);
         }
     }
 }

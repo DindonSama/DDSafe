@@ -65,7 +65,7 @@ ob_start();
                     </div>
 
                     <hr>
-                    <?php if ($config['personal_codes_enabled'] ?? false): ?>
+                    <?php if (!empty($currentUser['allow_personal_otp'])): ?>
                     <div class="mb-3">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="import_personal"

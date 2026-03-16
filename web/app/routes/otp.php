@@ -15,8 +15,9 @@ if ($path === '/otp/add' && $method === 'POST') {
     $algorithm  = $_POST['algorithm'] ?? 'SHA1';
     $digits     = (int)($_POST['digits'] ?? 6);
     $period     = (int)($_POST['period'] ?? 30);
-    $personalEnabled = $config['personal_codes_enabled'] ?? false;
-    $isPersonal = $personalEnabled && !empty($_POST['is_personal']);
+    $personalEnabled = !empty($currentUser['allow_personal_otp']);
+    $requestedPersonal = !empty($_POST['is_personal']);
+    $isPersonal = $personalEnabled && $requestedPersonal;
     $tenantId   = $_POST['tenant'] ?? '';
 
     $userTenantsForCreate = $tenantManager->getUserTenants($currentUser['id']);
@@ -28,7 +29,13 @@ if ($path === '/otp/add' && $method === 'POST') {
         }
     }
 
-    if (empty($currentUser['is_app_admin']) && !$canManageAnyTenantOtp) {
+    if ($requestedPersonal && !$personalEnabled) {
+        flash('danger', 'Les OTP personnels ne sont pas autorisés pour votre compte.');
+        header('Location: /otp');
+        exit;
+    }
+
+    if (empty($currentUser['is_app_admin']) && !$canManageAnyTenantOtp && !$personalEnabled) {
         flash('danger', 'Votre role ne permet pas de creer de nouveaux codes OTP.');
         header('Location: /otp');
         exit;
@@ -73,6 +80,7 @@ if ($path === '/otp/add' && $method === 'POST') {
 if ($path === '/otp/import' && $method === 'GET') {
     $pageTitle   = 'Importer un code OTP';
     $userTenants = $tenantManager->getUserTenants($currentUser['id']);
+    $personalEnabled = !empty($currentUser['allow_personal_otp']);
     $otpWritableTenants = [];
     foreach ($userTenants as $tenant) {
         if ($auth->canDoInTenant((string)$tenant['id'], 'manage_otp')) {
@@ -80,7 +88,7 @@ if ($path === '/otp/import' && $method === 'GET') {
         }
     }
 
-    $canCreateOtp = !empty($currentUser['is_app_admin']) || !empty($otpWritableTenants);
+    $canCreateOtp = !empty($currentUser['is_app_admin']) || !empty($otpWritableTenants) || $personalEnabled;
     if (!$canCreateOtp) {
         flash('danger', 'Votre role ne permet pas de creer/importer des codes OTP.');
         header('Location: /otp');
@@ -98,8 +106,9 @@ if ($path === '/otp/import' && $method === 'GET') {
 // ── Import process ───────────────────────────────────────────────
 if ($path === '/otp/import' && $method === 'POST') {
     $rawInput        = trim($_POST['otp_uri'] ?? '');
-    $personalEnabled = $config['personal_codes_enabled'] ?? false;
-    $isPersonal      = $personalEnabled && !empty($_POST['is_personal']);
+    $personalEnabled = !empty($currentUser['allow_personal_otp']);
+    $requestedPersonal = !empty($_POST['is_personal']);
+    $isPersonal      = $personalEnabled && $requestedPersonal;
     $tenantId        = $_POST['tenant'] ?? '';
 
     $userTenantsForCreate  = $tenantManager->getUserTenants($currentUser['id']);
@@ -111,7 +120,13 @@ if ($path === '/otp/import' && $method === 'POST') {
         }
     }
 
-    if (empty($currentUser['is_app_admin']) && !$canManageAnyTenantOtp) {
+    if ($requestedPersonal && !$personalEnabled) {
+        flash('danger', 'Les OTP personnels ne sont pas autorisés pour votre compte.');
+        header('Location: /otp/import');
+        exit;
+    }
+
+    if (empty($currentUser['is_app_admin']) && !$canManageAnyTenantOtp && !$personalEnabled) {
         flash('danger', 'Votre role ne permet pas de creer/importer des codes OTP.');
         header('Location: /otp');
         exit;
@@ -219,8 +234,14 @@ if ($path === '/otp/delete' && $method === 'POST') {
             exit;
         }
 
-        $otpManager->delete($id, $currentUser['id']);
-        flash('success', 'Code OTP mis à la corbeille.');
+        try {
+            $otpManager->delete($id, $currentUser['id']);
+            flash('success', 'Code OTP mis à la corbeille.');
+        } catch (\Exception $e) {
+            flash('danger', 'Suppression OTP impossible : ' . $e->getMessage());
+        }
+    } else {
+        flash('warning', 'Suppression OTP ignorée : identifiant manquant.');
     }
     header('Location: /otp');
     exit;
@@ -290,12 +311,12 @@ foreach ($userTenants as $tenant) {
         $otpWritableTenants[] = $tenant;
     }
 }
-$canCreateOtp = !empty($currentUser['is_app_admin']) || !empty($otpWritableTenants);
+$canCreateOtp = !empty($currentUser['is_app_admin']) || !empty($otpWritableTenants) || !empty($currentUser['allow_personal_otp']);
 $currentTenantId = $_SESSION['current_tenant'] ?? null;
 $search          = trim($_GET['q'] ?? '');
 $scopeParam      = strtolower(trim((string)($_GET['scope'] ?? 'all')));
 $currentScope    = $scopeParam === 'personal' ? 'personal' : 'all';
-$personalEnabled = (bool)($config['personal_codes_enabled'] ?? false);
+$personalEnabled = !empty($currentUser['allow_personal_otp']);
 
 // If a tenant is selected, tenant view takes precedence and personal codes stay hidden.
 if (!empty($currentTenantId)) {

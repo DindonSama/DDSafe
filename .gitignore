@@ -18,4 +18,4 @@ web/app/vendor/
 *.log
 
 # Docker
-docker-compose.override.yml
+docker-compose.yml

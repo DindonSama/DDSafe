@@ -35,6 +35,7 @@ if ($path === '/admin/users/create' && $method === 'POST') {
             'passwordConfirm' => $password,
             'name'            => $name,
             'is_app_admin'    => $isAdmin,
+            'allow_personal_otp' => false,
             'is_ad_user'      => false,
             'ad_username'     => '',
         ]);
@@ -54,6 +55,28 @@ if ($path === '/admin/users/toggle-admin' && $method === 'POST') {
         $pb->updateRecord('users', $uid, ['is_app_admin' => $isAdmin]);
         flash('success', 'Statut administrateur mis à jour.');
     }
+    header('Location: /admin/users');
+    exit;
+}
+
+// ── Toggle personal OTP permission ─────────────────────────────
+if ($path === '/admin/users/toggle-personal-otp' && $method === 'POST') {
+    $uid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['user_id'] ?? '');
+    $allowPersonalOtp = !empty($_POST['allow_personal_otp']);
+
+    if ($uid) {
+        $pb->updateRecord('users', $uid, ['allow_personal_otp' => $allowPersonalOtp]);
+        if ($uid === (string)($currentUser['id'] ?? '')) {
+            $_SESSION['user']['allow_personal_otp'] = $allowPersonalOtp;
+        }
+        flash(
+            'success',
+            $allowPersonalOtp
+                ? 'OTP personnels autorisés pour cet utilisateur.'
+                : 'OTP personnels désactivés pour cet utilisateur.'
+        );
+    }
+
     header('Location: /admin/users');
     exit;
 }
@@ -191,6 +214,7 @@ if ($path === '/admin/users') {
 if ($path === '/admin/trash' && $method === 'GET') {
     $pageTitle   = 'Corbeille';
     $trashedCodes = $otpManager->getTrashedCodes();
+    $trashedTenants = $tenantManager->getTrashedTenants();
     require __DIR__ . '/../templates/admin-trash.php';
     return;
 }
@@ -217,11 +241,37 @@ if ($path === '/admin/trash/delete' && $method === 'POST') {
     exit;
 }
 
+// ── Trash tenants: restore ─────────────────────────────────────
+if ($path === '/admin/trash/tenant/restore' && $method === 'POST') {
+    $id = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
+    if ($id) {
+        $tenantManager->restore($id);
+        flash('success', 'Tenant restauré.');
+    }
+    header('Location: /admin/trash');
+    exit;
+}
+
+// ── Trash tenants: permanent delete ────────────────────────────
+if ($path === '/admin/trash/tenant/delete' && $method === 'POST') {
+    $id = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
+    if ($id) {
+        $tenantManager->permanentDelete($id);
+        flash('success', 'Tenant définitivement supprimé.');
+    }
+    header('Location: /admin/trash');
+    exit;
+}
+
 // ── Trash: empty all ─────────────────────────────────────────────
 if ($path === '/admin/trash/empty' && $method === 'POST') {
-    $trashed = $otpManager->getTrashedCodes();
-    foreach ($trashed as $code) {
+    $trashedCodes = $otpManager->getTrashedCodes();
+    foreach ($trashedCodes as $code) {
         $otpManager->permanentDelete($code['id']);
+    }
+    $trashedTenants = $tenantManager->getTrashedTenants();
+    foreach ($trashedTenants as $tenant) {
+        $tenantManager->permanentDelete((string)$tenant['id']);
     }
     flash('success', 'Corbeille vidée.');
     header('Location: /admin/trash');

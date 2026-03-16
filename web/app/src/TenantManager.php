@@ -31,7 +31,11 @@ class TenantManager
 
     public function getById(string $id): ?array
     {
-        return $this->pb->getRecord('tenants', $id);
+        $tenant = $this->pb->getRecord('tenants', $id);
+        if (!empty($tenant['deleted'])) {
+            return null;
+        }
+        return $tenant;
     }
 
     public function update(string $id, array $data): array
@@ -39,9 +43,14 @@ class TenantManager
         return $this->pb->updateRecord('tenants', $id, $data);
     }
 
-    public function delete(string $id): bool
+    public function delete(string $id, string $deletedBy): bool
     {
-        return $this->pb->deleteRecord('tenants', $id);
+        $this->pb->updateRecord('tenants', $id, [
+            'deleted' => true,
+            'deleted_by' => $deletedBy,
+            'deleted_at' => date('c'),
+        ]);
+        return true;
     }
 
     public function getUserTenants(string $userId): array
@@ -55,7 +64,7 @@ class TenantManager
         $tenants = [];
         foreach ($memberships['items'] ?? [] as $m) {
             $tenant = $m['expand']['tenant'] ?? null;
-            if ($tenant) {
+            if ($tenant && empty($tenant['deleted'])) {
                 $tenant['_role'] = $m['role'];
                 $tenant['_membership_id'] = $m['id'];
                 $tenants[] = $tenant;
@@ -265,8 +274,18 @@ class TenantManager
      */
     public function getAllTenants(): array
     {
-        $result = $this->pb->listRecords('tenants', ['perPage' => 200]);
-        return $result['items'] ?? [];
+        try {
+            $result = $this->pb->listRecords('tenants', [
+                'filter' => 'deleted!=true',
+                'perPage' => 200,
+            ]);
+            return $result['items'] ?? [];
+        } catch (\Exception) {
+            // Backward compatibility when deleted fields are not migrated yet.
+            $result = $this->pb->listRecords('tenants', ['perPage' => 200]);
+            $items = $result['items'] ?? [];
+            return array_values(array_filter($items, static fn(array $t): bool => empty($t['deleted'])));
+        }
     }
 
     /**
@@ -279,7 +298,46 @@ class TenantManager
             'expand'  => 'tenant',
             'perPage' => 200,
         ]);
-        return $result['items'] ?? [];
+
+        $memberships = [];
+        foreach (($result['items'] ?? []) as $membership) {
+            $tenant = $membership['expand']['tenant'] ?? null;
+            if ($tenant && empty($tenant['deleted'])) {
+                $memberships[] = $membership;
+            }
+        }
+        return $memberships;
+    }
+
+    public function getTrashedTenants(): array
+    {
+        try {
+            $result = $this->pb->listRecords('tenants', [
+                'filter' => 'deleted=true',
+                'sort' => '-deleted_at',
+                'expand' => 'deleted_by,created_by',
+                'perPage' => 200,
+            ]);
+            return $result['items'] ?? [];
+        } catch (\Exception) {
+            // If the deleted fields do not exist yet, there is no tenant trash.
+            return [];
+        }
+    }
+
+    public function restore(string $id): bool
+    {
+        $this->pb->updateRecord('tenants', $id, [
+            'deleted' => false,
+            'deleted_by' => '',
+            'deleted_at' => '',
+        ]);
+        return true;
+    }
+
+    public function permanentDelete(string $id): bool
+    {
+        return $this->pb->deleteRecord('tenants', $id);
     }
 
     private function esc(string $value): string

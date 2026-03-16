@@ -43,7 +43,7 @@ ob_start();
                     onclick="document.getElementById('tenantFilterValue').value='';document.getElementById('tenantFilterRedirect').value='/otp';document.getElementById('tenantFilterForm').submit();">
                 <i class="bi bi-collection me-1"></i>Tous
             </button>
-            <?php if ($config['personal_codes_enabled'] ?? false): ?>
+            <?php if ($personalEnabled): ?>
                 <button type="button" class="tenant-pill <?= empty($currentTenantId) && (($currentScope ?? 'all') === 'personal') ? 'active' : '' ?>"
                         onclick="document.getElementById('tenantFilterValue').value='';document.getElementById('tenantFilterRedirect').value='/otp?scope=personal';document.getElementById('tenantFilterForm').submit();">
                     <i class="bi bi-person-lock me-1"></i>Personnels
@@ -105,7 +105,8 @@ ob_start();
                                             data-secret="<?= htmlspecialchars($code['secret'] ?? '') ?>"
                                             data-algorithm="<?= htmlspecialchars($code['algorithm'] ?? 'SHA1') ?>"
                                             data-digits="<?= htmlspecialchars((string)($code['digits'] ?? 6)) ?>"
-                                            data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>">
+                                            data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>"
+                                            data-can-delete="1">
                                         <i class="bi bi-pencil me-2"></i>Modifier
                                     </button>
                                 </li>
@@ -114,16 +115,6 @@ ob_start();
                                         <i class="bi bi-qr-code me-2"></i>Exporter QR
                                     </a>
                                 </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <?php if (!empty($currentUser['is_app_admin'])): ?>
-                                <li>
-                                    <button type="button" class="dropdown-item text-danger btn-delete-otp"
-                                            data-id="<?= htmlspecialchars($code['id']) ?>"
-                                            data-name="<?= htmlspecialchars($code['name']) ?>">
-                                        <i class="bi bi-trash me-2"></i>Supprimer
-                                    </button>
-                                </li>
-                                <?php endif; ?>
                             </ul>
                         </div>
                     </div>
@@ -161,7 +152,8 @@ ob_start();
             $letter = strtoupper(mb_substr($code['issuer'] ?: $code['name'], 0, 1));
             $tenantId = (string)($code['tenant'] ?? '');
             $canManageThisTenant = !empty($tenantManageOtpMap[$tenantId]);
-            $canDeleteTenantCode = !empty($currentUser['is_app_admin']) || $canManageThisTenant;
+            $isCodeOwner = (string)($code['owner'] ?? '') === (string)($currentUser['id'] ?? '');
+            $canManageTenantCode = !empty($currentUser['is_app_admin']) || $canManageThisTenant || $isCodeOwner;
         ?>
             <div class="otp-account is-tenant otp-item"
                  role="button"
@@ -177,7 +169,7 @@ ob_start();
                             <i class="bi bi-three-dots"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <?php if ($canDeleteTenantCode): ?>
+                            <?php if ($canManageTenantCode): ?>
                             <li>
                                 <button type="button" class="dropdown-item btn-edit-otp"
                                         data-id="<?= htmlspecialchars($code['id']) ?>"
@@ -186,7 +178,8 @@ ob_start();
                                         data-secret="<?= htmlspecialchars($code['secret'] ?? '') ?>"
                                         data-algorithm="<?= htmlspecialchars($code['algorithm'] ?? 'SHA1') ?>"
                                         data-digits="<?= htmlspecialchars((string)($code['digits'] ?? 6)) ?>"
-                                        data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>">
+                                        data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>"
+                                        data-can-delete="1">
                                     <i class="bi bi-pencil me-2"></i>Modifier
                                 </button>
                             </li>
@@ -196,16 +189,6 @@ ob_start();
                                     <i class="bi bi-qr-code me-2"></i>Exporter QR
                                 </a>
                             </li>
-                            <?php if ($canDeleteTenantCode): ?>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <button type="button" class="dropdown-item text-danger btn-delete-otp"
-                                        data-id="<?= htmlspecialchars($code['id']) ?>"
-                                        data-name="<?= htmlspecialchars($code['name']) ?>">
-                                    <i class="bi bi-trash me-2"></i>Supprimer
-                                </button>
-                            </li>
-                            <?php endif; ?>
                         </ul>
                     </div>
                 </div>
@@ -257,7 +240,7 @@ ob_start();
                         </div>
                     </div>
                     <hr style="border-color:var(--border-color)">
-                    <?php if ($config['personal_codes_enabled'] ?? false): ?>
+                    <?php if ($personalEnabled): ?>
                     <div class="mb-3">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="modal_is_personal" name="is_personal" value="1"
@@ -398,7 +381,7 @@ ob_start();
                         </div>
                     </div>
                     <hr style="border-color:var(--border-color)">
-                    <?php if ($config['personal_codes_enabled'] ?? false): ?>
+                    <?php if ($personalEnabled): ?>
                     <div class="mb-3">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="is_personal" name="is_personal"
@@ -437,7 +420,7 @@ ob_start();
 <!-- Edit OTP Modal -->
 <div class="modal fade" id="editOtpModal" tabindex="-1">
     <div class="modal-dialog">
-        <form method="POST" action="/otp/edit">
+        <form method="POST" action="/otp/edit" id="editOtpForm">
             <?= csrfField() ?>
             <input type="hidden" name="id" id="edit-otp-id">
             <div class="modal-content">
@@ -491,34 +474,19 @@ ob_start();
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-danger me-auto" id="edit-otp-delete-btn"
+                            onclick="(function(){var src=document.getElementById('edit-otp-id');var dst=document.getElementById('edit-delete-otp-id');var form=document.getElementById('deleteOtpForm');if(dst&&src){dst.value=src.value||'';}if(!dst||!dst.value){alert('Impossible de supprimer: identifiant OTP manquant.');return;}if(form){form.requestSubmit();}})();">
+                        <i class="bi bi-trash me-1"></i>Supprimer
+                    </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-accent">Enregistrer</button>
+                    <button type="submit" class="btn btn-accent" form="editOtpForm">Enregistrer</button>
                 </div>
             </div>
         </form>
-    </div>
-</div>
-
-<!-- Delete OTP Modal -->
-<div class="modal fade" id="deleteOtpModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="POST" action="/otp/delete">
+        <form method="POST" action="/otp/delete" id="deleteOtpForm"
+              onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce code OTP ?');">
             <?= csrfField() ?>
-            <input type="hidden" name="id" id="delete-otp-id">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" style="color:var(--danger)"><i class="bi bi-trash me-2"></i>Supprimer</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    Êtes-vous sûr de vouloir supprimer <strong id="delete-otp-name"></strong> ?
-                    <br><small style="color:var(--text-muted)">Le code sera placé dans la corbeille.</small>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-danger">Supprimer</button>
-                </div>
-            </div>
+            <input type="hidden" name="id" id="edit-delete-otp-id">
         </form>
     </div>
 </div>

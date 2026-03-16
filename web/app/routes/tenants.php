@@ -9,14 +9,29 @@
 
 use App\PermissionManager;
 
+$canCreateTenant = !empty($currentUser['is_app_admin']);
+
 // ── Create tenant ────────────────────────────────────────────────
 if ($path === '/tenants/create' && $method === 'GET') {
+    if (!$canCreateTenant) {
+        flash('danger', 'Vous n\'avez pas la permission de créer un tenant.');
+        header('Location: /tenants');
+        exit;
+    }
+
     $pageTitle = 'Créer un tenant';
+    $userTenants = $tenantManager->getUserTenants($currentUser['id']);
     require __DIR__ . '/../templates/tenants.php';
     return;
 }
 
 if ($path === '/tenants/create' && $method === 'POST') {
+    if (!$canCreateTenant) {
+        flash('danger', 'Vous n\'avez pas la permission de créer un tenant.');
+        header('Location: /tenants');
+        exit;
+    }
+
     $name = trim($_POST['name'] ?? '');
     $desc = trim($_POST['description'] ?? '');
     if ($name === '') {
@@ -206,20 +221,32 @@ if ($path === '/tenants/select' && $method === 'POST') {
 // ── Delete tenant ────────────────────────────────────────────────
 if ($path === '/tenants/delete' && $method === 'POST') {
     $tid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
-    
-    // Check permission
-    if (!$auth->canDoInTenant($tid, 'delete_tenant')) {
+    $tenant = $tid ? $tenantManager->getById($tid) : null;
+    $membership = $tid ? $tenantManager->getMembership($tid, (string)($currentUser['id'] ?? '')) : null;
+    $isOwner = (($membership['role'] ?? '') === 'owner')
+        || ($tenant && (($tenant['created_by'] ?? '') === (string)($currentUser['id'] ?? '')));
+
+    if (!$isOwner) {
         flash('danger', 'Vous n\'avez pas la permission de supprimer ce tenant.');
         header('Location: /tenants');
         exit;
     }
     
     if ($tid) {
-        $tenantManager->delete($tid);
-        if (($_SESSION['current_tenant'] ?? '') === $tid) {
-            unset($_SESSION['current_tenant']);
+        try {
+            $deleted = $tenantManager->delete($tid, (string)($currentUser['id'] ?? ''));
+            if (!$deleted) {
+                flash('danger', 'La suppression du tenant a échoué.');
+                header('Location: /tenants');
+                exit;
+            }
+            if (($_SESSION['current_tenant'] ?? '') === $tid) {
+                unset($_SESSION['current_tenant']);
+            }
+            flash('success', 'Tenant déplacé dans la corbeille.');
+        } catch (\Exception $e) {
+            flash('danger', 'Impossible de supprimer le tenant : ' . $e->getMessage());
         }
-        flash('success', 'Tenant supprimé.');
     }
     header('Location: /tenants');
     exit;

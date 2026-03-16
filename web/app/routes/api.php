@@ -30,8 +30,9 @@ if ($path === '/api/otp/codes' && $method === 'GET') {
 // ── GET /api/otp/overview — read-only OTP list with live codes ───────────
 if ($path === '/api/otp/overview' && $method === 'GET') {
     $q = trim($_GET['q'] ?? '');
+    $personalEnabled = !empty($currentUser['allow_personal_otp']);
 
-    $personal = ($config['personal_codes_enabled'] ?? false)
+    $personal = $personalEnabled
         ? $otpManager->getPersonalCodes((string)$currentUser['id'], $q)
         : [];
 
@@ -101,7 +102,9 @@ if ($path === '/api/search' && $method === 'GET') {
         exit;
     }
 
-    $personal = $otpManager->getPersonalCodes($currentUser['id'], $q);
+    $personal = !empty($currentUser['allow_personal_otp'])
+        ? $otpManager->getPersonalCodes($currentUser['id'], $q)
+        : [];
     $tenantId = $_SESSION['current_tenant'] ?? null;
     $tenant   = $tenantId ? $otpManager->getTenantCodes($tenantId, $q) : [];
 
