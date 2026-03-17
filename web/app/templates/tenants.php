@@ -8,7 +8,7 @@ ob_start();
     <h3><i class="bi bi-building me-2"></i><?= htmlspecialchars($pageTitle) ?></h3>
     <?php if (!empty($canCreateTenant)): ?>
         <button class="btn btn-accent btn-sm" data-bs-toggle="modal" data-bs-target="#createTenantModal">
-            <i class="bi bi-plus-lg me-1"></i>Créer un tenant
+            <i class="bi bi-plus-lg me-1"></i>Créer une collection
         </button>
     <?php endif; ?>
 </div>
@@ -16,7 +16,7 @@ ob_start();
 <?php if (empty($userTenants)): ?>
     <div class="alert alert-info">
         <i class="bi bi-info-circle me-2"></i>
-        Vous n'êtes membre d'aucun tenant. Créez-en un pour commencer à partager des codes OTP.
+        Vous n'êtes membre d'aucune collection. Créez-en une pour commencer à partager des codes OTP.
     </div>
 <?php else: ?>
     <div class="row g-3">
@@ -49,8 +49,8 @@ ob_start();
                         <?php if (in_array(($t['_role'] ?? ''), ['owner', 'admin'], true)): ?>
                             <a href="/tenants/manage?id=<?= htmlspecialchars($t['id']) ?>"
                                class="btn btn-sm btn-ghost"
-                               title="Modifier ce tenant"
-                               aria-label="Modifier ce tenant">
+                               title="Modifier cette collection"
+                               aria-label="Modifier cette collection">
                                 <i class="bi bi-gear me-1"></i>Modifier
                             </a>
                         <?php endif; ?>
@@ -62,14 +62,14 @@ ob_start();
 <?php endif; ?>
 
 <?php if (!empty($canCreateTenant)): ?>
-<!-- Create Tenant Modal -->
+<!-- Create Collection Modal -->
 <div class="modal fade" id="createTenantModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" action="/tenants/create">
             <?= csrfField() ?>
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>Nouveau tenant</h5>
+                    <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>Nouvelle collection</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">

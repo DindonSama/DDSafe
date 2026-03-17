@@ -8,7 +8,7 @@ use App\PermissionManager;
 
 ob_start();
 
-// Check permissions
+// Vérifier les permissions
 $canManageMembers = !empty($role) && PermissionManager::can($role, 'manage_members');
 $canManageRoles = !empty($role) && PermissionManager::can($role, 'manage_roles');
 $canEditSettings = !empty($role) && PermissionManager::can($role, 'edit_settings');
@@ -32,7 +32,7 @@ foreach (PermissionManager::getValidRoles() as $candidateRole) {
 </div>
 
 <div class="row">
-    <!-- Tenant info -->
+    <!-- Collection info -->
     <div class="col-md-5 mb-4">
         <div class="card">
             <div class="card-header">
@@ -60,11 +60,11 @@ foreach (PermissionManager::getValidRoles() as $candidateRole) {
                     <?php if ($canDeleteTenant): ?>
                         <hr>
                         <form method="POST" action="/tenants/delete"
-                              onsubmit="return confirm('Êtes-vous sûr ? Tous les codes OTP de ce tenant seront perdus.')">
+                              onsubmit="return confirm('Êtes-vous sûr ? Tous les codes OTP de cette collection seront perdus.')">
                             <?= csrfField() ?>
                             <input type="hidden" name="id" value="<?= htmlspecialchars($tenant['id']) ?>">
                             <button type="submit" class="btn btn-outline-danger btn-sm">
-                                <i class="bi bi-trash me-1"></i>Supprimer ce tenant
+                                <i class="bi bi-trash me-1"></i>Supprimer cette collection
                             </button>
                         </form>
                     <?php endif; ?>
@@ -79,7 +79,7 @@ foreach (PermissionManager::getValidRoles() as $candidateRole) {
         </div>
     </div>
 
-    <!-- Members -->
+    <!-- Membres -->
     <div class="col-md-7 mb-4">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -87,7 +87,7 @@ foreach (PermissionManager::getValidRoles() as $candidateRole) {
                 <span class="badge bg-primary"><?= count($members) ?></span>
             </div>
             <div class="card-body">
-                <!-- Add member form -->
+                <!-- Formulaire d'ajout de membre -->
                 <?php if ($canManageMembers): ?>
                     <form method="POST" action="/tenants/members/add" class="mb-3">
                         <?= csrfField() ?>
@@ -120,7 +120,7 @@ foreach (PermissionManager::getValidRoles() as $candidateRole) {
                         </div>
                         <?php if (empty($addableUsers)): ?>
                             <p class="small mt-2 mb-0" style="color:var(--text-secondary)">
-                                <i class="bi bi-info-circle me-1"></i>Tous les utilisateurs existants sont déjà membres de ce tenant.
+                                <i class="bi bi-info-circle me-1"></i>Tous les utilisateurs existants sont déjà membres de cette collection.
                             </p>
                         <?php endif; ?>
                     </form>
@@ -136,7 +136,7 @@ foreach (PermissionManager::getValidRoles() as $candidateRole) {
                     <hr>
                 <?php endif; ?>
 
-                <!-- Members list -->
+                <!-- Liste des membres -->
                 <?php if (empty($members)): ?>
                     <p class="text-muted text-center">Aucun membre.</p>
                 <?php else: ?>
@@ -217,7 +217,7 @@ foreach (PermissionManager::getValidRoles() as $candidateRole) {
             </div>
         </div>
 
-        <!-- Roles legend -->
+        <!-- Légende des rôles -->
         <div class="card mt-3">
             <div class="card-body small">
                 <h6><i class="bi bi-info-circle me-1"></i>Description des rôles</h6>

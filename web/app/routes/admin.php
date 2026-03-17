@@ -8,14 +8,14 @@
 
 use App\PermissionManager;
 
-// Only app admins
+// Réservé aux administrateurs de l'application
 if (empty($currentUser['is_app_admin'])) {
     flash('danger', 'Accès refusé.');
     header('Location: /');
     exit;
 }
 
-// ── Create user ──────────────────────────────────────────────────
+// ── Créer un utilisateur ─────────────────────────────────────────
 if ($path === '/admin/users/create' && $method === 'POST') {
     $email    = trim($_POST['email'] ?? '');
     $name     = trim($_POST['name'] ?? '');
@@ -47,7 +47,7 @@ if ($path === '/admin/users/create' && $method === 'POST') {
     exit;
 }
 
-// ── Toggle admin status ──────────────────────────────────────────
+// ── Basculer le statut admin ─────────────────────────────────────
 if ($path === '/admin/users/toggle-admin' && $method === 'POST') {
     $uid     = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['user_id'] ?? '');
     $isAdmin = !empty($_POST['is_app_admin']);
@@ -59,7 +59,7 @@ if ($path === '/admin/users/toggle-admin' && $method === 'POST') {
     exit;
 }
 
-// ── Toggle personal OTP permission ─────────────────────────────
+// ── Basculer la permission OTP personnel ────────────────────────
 if ($path === '/admin/users/toggle-personal-otp' && $method === 'POST') {
     $uid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['user_id'] ?? '');
     $allowPersonalOtp = !empty($_POST['allow_personal_otp']);
@@ -81,7 +81,7 @@ if ($path === '/admin/users/toggle-personal-otp' && $method === 'POST') {
     exit;
 }
 
-// ── Delete user ──────────────────────────────────────────────────
+// ── Supprimer un utilisateur ─────────────────────────────────────
 if ($path === '/admin/users/delete' && $method === 'POST') {
     $uid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['user_id'] ?? '');
     if ($uid && $uid !== $currentUser['id']) {
@@ -92,7 +92,7 @@ if ($path === '/admin/users/delete' && $method === 'POST') {
     exit;
 }
 
-// ── Edit user ────────────────────────────────────────────────────
+// ── Modifier un utilisateur ──────────────────────────────────────
 if ($path === '/admin/users/edit' && $method === 'POST') {
     $uid      = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['user_id'] ?? '');
     $email    = trim($_POST['email'] ?? '');
@@ -116,7 +116,7 @@ if ($path === '/admin/users/edit' && $method === 'POST') {
     exit;
 }
 
-// ── Manage user memberships in tenants ──────────────────────────
+// ── Gérer les appartenances utilisateur aux collections ─────────
 if ($path === '/admin/users/tenants/add' && $method === 'POST') {
     $uid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['user_id'] ?? '');
     $tid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['tenant_id'] ?? '');
@@ -129,7 +129,7 @@ if ($path === '/admin/users/tenants/add' && $method === 'POST') {
     if ($uid && $tid) {
         try {
             $tenantManager->addMemberById($tid, $uid, $role);
-            flash('success', 'Tenant ajouté à l\'utilisateur.');
+            flash('success', 'Collection ajoutée à l\'utilisateur.');
         } catch (\Exception $e) {
             flash('danger', 'Erreur : ' . $e->getMessage());
         }
@@ -160,7 +160,7 @@ if ($path === '/admin/users/tenants/update' && $method === 'POST') {
 
         try {
             $tenantManager->updateMemberRole($mid, $role);
-            flash('success', 'Rôle tenant mis à jour.');
+            flash('success', 'Rôle collection mis à jour.');
         } catch (\Exception $e) {
             flash('danger', 'Erreur : ' . $e->getMessage());
         }
@@ -183,7 +183,7 @@ if ($path === '/admin/users/tenants/remove' && $method === 'POST') {
 
         try {
             $tenantManager->removeMember($mid);
-            flash('success', 'Utilisateur retiré du tenant.');
+            flash('success', 'Utilisateur retiré de la collection.');
         } catch (\Exception $e) {
             flash('danger', 'Erreur : ' . $e->getMessage());
         }
@@ -192,7 +192,7 @@ if ($path === '/admin/users/tenants/remove' && $method === 'POST') {
     exit;
 }
 
-// ── List users (default) ─────────────────────────────────────────
+// ── Lister les utilisateurs (par défaut) ────────────────────────
 if ($path === '/admin/users') {
     $pageTitle = 'Gestion des utilisateurs';
     $openTenantUserId = preg_replace('/[^a-zA-Z0-9]/', '', $_GET['open_tenant_user'] ?? '');
@@ -210,7 +210,7 @@ if ($path === '/admin/users') {
     return;
 }
 
-// ── Trash: list deleted codes ────────────────────────────────────
+// ── Corbeille : lister les codes supprimés ──────────────────────
 if ($path === '/admin/trash' && $method === 'GET') {
     $pageTitle   = 'Corbeille';
     $trashedCodes = $otpManager->getTrashedCodes();
@@ -219,7 +219,7 @@ if ($path === '/admin/trash' && $method === 'GET') {
     return;
 }
 
-// ── Trash: restore code ──────────────────────────────────────────
+// ── Corbeille : restaurer un code ────────────────────────────────
 if ($path === '/admin/trash/restore' && $method === 'POST') {
     $id = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
     if ($id) {
@@ -230,7 +230,7 @@ if ($path === '/admin/trash/restore' && $method === 'POST') {
     exit;
 }
 
-// ── Trash: permanent delete ──────────────────────────────────────
+// ── Corbeille : suppression définitive ──────────────────────────
 if ($path === '/admin/trash/delete' && $method === 'POST') {
     $id = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
     if ($id) {
@@ -241,29 +241,29 @@ if ($path === '/admin/trash/delete' && $method === 'POST') {
     exit;
 }
 
-// ── Trash tenants: restore ─────────────────────────────────────
+// ── Corbeille collections : restaurer ───────────────────────────
 if ($path === '/admin/trash/tenant/restore' && $method === 'POST') {
     $id = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
     if ($id) {
         $tenantManager->restore($id);
-        flash('success', 'Tenant restauré.');
+        flash('success', 'Collection restaurée.');
     }
     header('Location: /admin/trash');
     exit;
 }
 
-// ── Trash tenants: permanent delete ────────────────────────────
+// ── Corbeille collections : suppression définitive ──────────────
 if ($path === '/admin/trash/tenant/delete' && $method === 'POST') {
     $id = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
     if ($id) {
         $tenantManager->permanentDelete($id);
-        flash('success', 'Tenant définitivement supprimé.');
+        flash('success', 'Collection définitivement supprimée.');
     }
     header('Location: /admin/trash');
     exit;
 }
 
-// ── Trash: empty all ─────────────────────────────────────────────
+// ── Corbeille : tout vider ──────────────────────────────────────
 if ($path === '/admin/trash/empty' && $method === 'POST') {
     $trashedCodes = $otpManager->getTrashedCodes();
     foreach ($trashedCodes as $code) {

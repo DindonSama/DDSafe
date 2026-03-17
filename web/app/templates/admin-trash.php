@@ -108,7 +108,7 @@ ob_start();
 <?php if (!empty($trashedTenants)): ?>
     <div class="card mt-3">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <strong>Tenants supprimés</strong>
+            <strong>Collections supprimées</strong>
             <span class="badge bg-secondary"><?= count($trashedTenants) ?></span>
         </div>
         <div class="card-body">
@@ -162,7 +162,7 @@ ob_start();
                                             </button>
                                         </form>
                                         <form method="POST" action="/admin/trash/tenant/delete" class="d-inline"
-                                              onsubmit="return confirm('Supprimer définitivement ce tenant ?')">
+                                              onsubmit="return confirm('Supprimer définitivement cette collection ?')">
                                             <?= csrfField() ?>
                                             <input type="hidden" name="id" value="<?= htmlspecialchars($tenant['id']) ?>">
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer définitivement">

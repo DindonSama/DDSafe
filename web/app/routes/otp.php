@@ -31,14 +31,14 @@ function otpReturnPath(string $path): string
     return str_starts_with($path, '/otp') ? $path : '/otp';
 }
 
-// ── Create tenant folder ───────────────────────────────────────
+// ── Créer un dossier de collection ─────────────────────────────
 if ($path === '/otp/groups/create' && $method === 'POST') {
     $tenantId = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['tenant_id'] ?? '');
     $name = trim((string)($_POST['name'] ?? ''));
     $returnTo = otpReturnPath((string)($_POST['return_to'] ?? '/otp'));
 
     if ($tenantId === '' || !$auth->canDoInTenant($tenantId, 'manage_otp')) {
-        flash('danger', 'Vous n\'avez pas la permission de créer un dossier dans ce tenant.');
+        flash('danger', 'Vous n\'avez pas la permission de créer un dossier dans cette collection.');
         header('Location: ' . $returnTo);
         exit;
     }
@@ -60,7 +60,7 @@ if ($path === '/otp/groups/create' && $method === 'POST') {
     exit;
 }
 
-// ── Rename tenant folder ──────────────────────────────────────
+// ── Renommer un dossier de collection ──────────────────────────
 if ($path === '/otp/groups/rename' && $method === 'POST') {
     $groupId  = sanitizeOtpGroupId((string)($_POST['group_id'] ?? ''));
     $newName  = trim((string)($_POST['name'] ?? ''));
@@ -103,7 +103,7 @@ if ($path === '/otp/groups/rename' && $method === 'POST') {
     exit;
 }
 
-// ── Delete tenant folder ───────────────────────────────────────
+// ── Supprimer un dossier de collection ─────────────────────────
 if ($path === '/otp/groups/delete' && $method === 'POST') {
     $groupId = sanitizeOtpGroupId((string)($_POST['group_id'] ?? ''));
     $returnTo = otpReturnPath((string)($_POST['return_to'] ?? '/otp'));
@@ -139,7 +139,7 @@ if ($path === '/otp/groups/delete' && $method === 'POST') {
     exit;
 }
 
-// ── Add OTP code ─────────────────────────────────────────────────
+// ── Ajouter un code OTP ──────────────────────────────────────────
 if ($path === '/otp/add' && $method === 'POST') {
     $name       = trim($_POST['name'] ?? '');
     $secret     = trim($_POST['secret'] ?? '');
@@ -182,19 +182,19 @@ if ($path === '/otp/add' && $method === 'POST') {
     }
 
     if (!$isPersonal && $tenantId === '') {
-        flash('danger', 'Veuillez sélectionner un tenant pour un code non personnel.');
+        flash('danger', 'Veuillez sélectionner une collection pour un code non personnel.');
         header('Location: ' . $returnTo);
         exit;
     }
 
     if (!$isPersonal && !$auth->canDoInTenant($tenantId, 'manage_otp')) {
-        flash('danger', 'Vous n\'avez pas la permission de creer des codes OTP dans ce tenant.');
+        flash('danger', 'Vous n\'avez pas la permission de creer des codes OTP dans cette collection.');
         header('Location: ' . $returnTo);
         exit;
     }
 
     if (!$isPersonal && !validateOtpGroupForTenant($otpManager, $groupId, $tenantId)) {
-        flash('danger', 'Dossier invalide pour ce tenant.');
+        flash('danger', 'Dossier invalide pour cette collection.');
         header('Location: ' . $returnTo);
         exit;
     }
@@ -217,7 +217,7 @@ if ($path === '/otp/add' && $method === 'POST') {
     exit;
 }
 
-// ── Import page ──────────────────────────────────────────────────
+// ── Page d'import ────────────────────────────────────────────────
 if ($path === '/otp/import' && $method === 'GET') {
     $pageTitle   = 'Importer un code OTP';
     $userTenants = $tenantManager->getUserTenants($currentUser['id']);
@@ -236,7 +236,7 @@ if ($path === '/otp/import' && $method === 'GET') {
         exit;
     }
     $prefillUri = trim($_GET['uri'] ?? '');
-    // Validate that the prefilled URI is a proper otpauth URI before passing it to the template
+    // Vérifier que l'URI préremplie est une URI otpauth valide avant de la passer au template
     if ($prefillUri !== '' && !str_starts_with($prefillUri, 'otpauth://')) {
         $prefillUri = '';
     }
@@ -244,7 +244,7 @@ if ($path === '/otp/import' && $method === 'GET') {
     return;
 }
 
-// ── Import process ───────────────────────────────────────────────
+// ── Traitement de l'import ───────────────────────────────────────
 if ($path === '/otp/import' && $method === 'POST') {
     $rawInput        = trim($_POST['otp_uri'] ?? '');
     $personalEnabled = !empty($currentUser['allow_personal_otp']);
@@ -275,7 +275,7 @@ if ($path === '/otp/import' && $method === 'POST') {
         exit;
     }
 
-    // Extract all valid otpauth:// URIs, one per line
+    // Extraire toutes les URI otpauth:// valides, une par ligne
     $uris = array_values(array_filter(
         array_map('trim', explode("\n", $rawInput)),
         fn($l) => str_starts_with($l, 'otpauth://')
@@ -288,19 +288,19 @@ if ($path === '/otp/import' && $method === 'POST') {
     }
 
     if (!$isPersonal && $tenantId === '') {
-        flash('danger', 'Veuillez sélectionner un tenant pour un code non personnel.');
+        flash('danger', 'Veuillez sélectionner une collection pour un code non personnel.');
         header('Location: ' . $returnTo);
         exit;
     }
 
     if (!$isPersonal && !$auth->canDoInTenant($tenantId, 'manage_otp')) {
-        flash('danger', "Vous n'avez pas la permission d'importer des codes OTP dans ce tenant.");
+        flash('danger', "Vous n'avez pas la permission d'importer des codes OTP dans cette collection.");
         header('Location: ' . $returnTo);
         exit;
     }
 
     if (!$isPersonal && !validateOtpGroupForTenant($otpManager, $groupId, $tenantId)) {
-        flash('danger', 'Dossier invalide pour ce tenant.');
+        flash('danger', 'Dossier invalide pour cette collection.');
         header('Location: ' . $returnTo);
         exit;
     }
@@ -330,7 +330,7 @@ if ($path === '/otp/import' && $method === 'POST') {
     exit;
 }
 
-// ── Export page ──────────────────────────────────────────────────
+// ── Page d'export ────────────────────────────────────────────────
 if ($path === '/otp/export' && $method === 'GET') {
     $pageTitle = 'Exporter des codes OTP';
     $rawIds    = $_GET['ids'] ?? '';
@@ -349,7 +349,7 @@ if ($path === '/otp/export' && $method === 'GET') {
     return;
 }
 
-// ── Export form submission ────────────────────────────────────────
+// ── Soumission du formulaire d'export ────────────────────────────
 if ($path === '/otp/export' && $method === 'POST') {
     $ids = $_POST['ids'] ?? [];
     if (empty($ids)) {
@@ -362,7 +362,7 @@ if ($path === '/otp/export' && $method === 'POST') {
     exit;
 }
 
-// ── Delete (soft) ────────────────────────────────────────────────
+// ── Suppression (logique) ────────────────────────────────────────
 if ($path === '/otp/delete' && $method === 'POST') {
     $id = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
     $returnTo = otpReturnPath((string)($_POST['return_to'] ?? '/otp'));
@@ -398,7 +398,7 @@ if ($path === '/otp/delete' && $method === 'POST') {
     exit;
 }
 
-// ── Edit ─────────────────────────────────────────────────────────
+// ── Modifier ─────────────────────────────────────────────────────
 if ($path === '/otp/edit' && $method === 'POST') {
     $id        = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
     $name      = trim($_POST['name'] ?? '');
@@ -440,7 +440,7 @@ if ($path === '/otp/edit' && $method === 'POST') {
         if (!empty($record['is_personal'])) {
             $groupId = '';
         } elseif (!validateOtpGroupForTenant($otpManager, $groupId, $tenantId)) {
-            flash('danger', 'Dossier invalide pour ce tenant.');
+            flash('danger', 'Dossier invalide pour cette collection.');
             header('Location: ' . $returnTo);
             exit;
         }
@@ -461,7 +461,7 @@ if ($path === '/otp/edit' && $method === 'POST') {
     exit;
 }
 
-// ── List (default) ───────────────────────────────────────────────
+// ── Lister (par défaut) ──────────────────────────────────────────
 $pageTitle      = 'Codes OTP';
 $userTenants    = $tenantManager->getUserTenants($currentUser['id']);
 $otpWritableTenants = [];
@@ -487,7 +487,7 @@ $currentFolderName = '';
 $currentTenantCanManageOtp = false;
 $rootTenantCodes = [];
 
-// If a tenant is selected, tenant view takes precedence and personal codes stay hidden.
+// Si une collection est sélectionnée, la vue collection est prioritaire et masque les codes personnels.
 if (!empty($currentTenantId)) {
     $currentScope = 'all';
 }
@@ -528,12 +528,12 @@ if ($showTenantCodes && $currentTenantId) {
         }
     }
 } elseif ($showTenantCodes) {
-    // Show all tenants by default
+    // Afficher toutes les collections par défaut
     foreach ($userTenants as $t) {
         $codes = $otpManager->getTenantCodes($t['id'], $search);
         $tenantCodes = array_merge($tenantCodes, $codes);
     }
-    $currentTenantName = 'Tous les tenants';
+    $currentTenantName = 'Toutes les collections';
 }
 
 require __DIR__ . '/../templates/otp.php';

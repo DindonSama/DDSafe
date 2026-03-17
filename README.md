@@ -1,17 +1,17 @@
 # 2FA Manager
 
-Application web de gestion de codes OTP (TOTP/HOTP) avec support multi-tenant et Active Directory.
+Application web de gestion de codes OTP (TOTP/HOTP) avec support multi-collection et Active Directory.
 
 ## Fonctionnalités
 
 - **Gestion de codes OTP** — Ajouter, modifier, supprimer des codes TOTP/HOTP
-- **Multi-tenant** — Les utilisateurs peuvent appartenir à plusieurs tenants avec des rôles distincts
-- **Codes personnels & partagés** — Codes OTP privés autorisables par utilisateur + codes partagés au niveau du tenant
+- **Multi-collection** — Les utilisateurs peuvent appartenir à plusieurs collections avec des rôles distincts
+- **Codes personnels & partagés** — Codes OTP privés autorisables par utilisateur + codes partagés au niveau de la collection
 - **Import par QR code** — Scanner un QR code via la caméra ou charger une image
 - **Export QR code** — Exporter un ou plusieurs codes sous forme de QR codes imprimables
 - **Recherche rapide** — Filtrage instantané des codes par nom ou émetteur
 - **Active Directory / LDAP** — Authentification via compte AD
-- **Rôles hiérarchiques** — Propriétaire, Administrateur, Membre, Observateur par tenant
+- **Rôles hiérarchiques** — Propriétaire, Administrateur, Membre, Observateur par collection
 - **Chiffrement** — Les secrets OTP sont chiffrés au repos (libsodium)
 - **Corbeille** — Les codes supprimés sont conservés et restaurables par un administrateur
 - **Thème sombre** — Interface entièrement adaptée au travail en conditions sombres
@@ -96,14 +96,14 @@ Les utilisateurs AD sont automatiquement créés dans PocketBase à leur premiè
 
 | Rôle              | Description |
 |-------------------|-------------|
-| **Administrateur**| Accès complet : gestion des utilisateurs, tenants, corbeille |
-| **Utilisateur**   | Accès à ses codes OTP et aux tenants dont il est membre |
+| **Administrateur**| Accès complet : gestion des utilisateurs, collections, corbeille |
+| **Utilisateur**   | Accès à ses codes OTP et aux collections dont il est membre |
 
 > Les OTP personnels sont refusés par défaut et doivent être autorisés utilisateur par utilisateur depuis l'administration.
 
-### Rôles par tenant
+### Rôles par collection
 
-| Rôle               | Voir les codes | Gérer les codes OTP | Gérer les membres | Paramètres tenant |
+| Rôle               | Voir les codes | Gérer les codes OTP | Gérer les membres | Paramètres collection |
 |--------------------|:-:|:-:|:-:|:-:|
 | **Propriétaire**   | ✅ | ✅ | ✅ | ✅ |
 | **Administrateur** | ✅ | ✅ | ✅ | ✅ |
@@ -112,7 +112,7 @@ Les utilisateurs AD sont automatiquement créés dans PocketBase à leur premiè
 
 > Le rôle par défaut lors de l'ajout d'un membre est **Observateur**.
 > Un utilisateur **Propriétaire** ne peut pas modifier son propre rôle propriétaire.
-> Seul le **Propriétaire** d'un tenant peut supprimer ce tenant.
+> Seul le **Propriétaire** d'une collection peut supprimer cette collection.
 
 ---
 
@@ -134,7 +134,7 @@ Les utilisateurs AD sont automatiquement créés dans PocketBase à leur premiè
     │   │   └── assets/
     │   │       ├── css/app.css
     │   │       └── js/app.js
-    │   ├── src/             # Logique métier (Auth, OTP, Tenants...)
+    │   ├── src/             # Logique métier (Auth, OTP, Collections...)
     │   ├── routes/          # Contrôleurs
     │   ├── templates/       # Templates PHP
     │   └── vendor/          # ⚠ non commité — dépendances Composer
@@ -146,7 +146,7 @@ Les utilisateurs AD sont automatiquement créés dans PocketBase à leur premiè
 
 ## Import de membres (CSV)
 
-Importez des membres en masse dans un tenant via l'interface d'administration.
+Importez des membres en masse dans une collection via l'interface d'administration.
 Fichier attendu (voir `example-import.csv`) :
 
 ```csv

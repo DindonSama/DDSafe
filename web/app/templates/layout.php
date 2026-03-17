@@ -47,7 +47,7 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
         <?php if (!empty($currentUser['can_access_tenants_menu'])): ?>
         <div class="nav-section mt-3">Organisation</div>
         <a href="/tenants" class="nav-link <?= str_starts_with($currentPath, '/tenants') ? 'active' : '' ?>">
-            <i class="bi bi-building"></i> Tenants
+            <i class="bi bi-building"></i> Collections
         </a>
         <?php endif; ?>
 

@@ -11,15 +11,15 @@ use App\PermissionManager;
 
 $canCreateTenant = !empty($currentUser['is_app_admin']);
 
-// ── Create tenant ────────────────────────────────────────────────
+// ── Créer une collection ─────────────────────────────────────────
 if ($path === '/tenants/create' && $method === 'GET') {
     if (!$canCreateTenant) {
-        flash('danger', 'Vous n\'avez pas la permission de créer un tenant.');
+        flash('danger', 'Vous n\'avez pas la permission de créer une collection.');
         header('Location: /tenants');
         exit;
     }
 
-    $pageTitle = 'Créer un tenant';
+    $pageTitle = 'Créer une collection';
     $userTenants = $tenantManager->getUserTenants($currentUser['id']);
     require __DIR__ . '/../templates/tenants.php';
     return;
@@ -27,7 +27,7 @@ if ($path === '/tenants/create' && $method === 'GET') {
 
 if ($path === '/tenants/create' && $method === 'POST') {
     if (!$canCreateTenant) {
-        flash('danger', 'Vous n\'avez pas la permission de créer un tenant.');
+        flash('danger', 'Vous n\'avez pas la permission de créer une collection.');
         header('Location: /tenants');
         exit;
     }
@@ -40,21 +40,21 @@ if ($path === '/tenants/create' && $method === 'POST') {
         exit;
     }
     $tenantManager->create($name, $desc, $currentUser['id']);
-    flash('success', 'Tenant créé avec succès.');
+    flash('success', 'Collection créée avec succès.');
     header('Location: /tenants');
     exit;
 }
 
-// ── Manage tenant ────────────────────────────────────────────────
+// ── Gérer une collection ─────────────────────────────────────────
 if ($path === '/tenants/manage' && $method === 'GET') {
     $tid = preg_replace('/[^a-zA-Z0-9]/', '', $_GET['id'] ?? '');
     if (!$tid) { header('Location: /tenants'); exit; }
 
     $tenant  = $tenantManager->getById($tid);
-    if (!$tenant) { flash('danger', 'Tenant introuvable.'); header('Location: /tenants'); exit; }
+    if (!$tenant) { flash('danger', 'Collection introuvable.'); header('Location: /tenants'); exit; }
     $isCreator = (($tenant['created_by'] ?? '') === ($currentUser['id'] ?? ''));
 
-    // Check permission to view
+    // Vérifier la permission de consultation
     if (!$auth->canDoInTenant($tid, 'view_tenant') && !$isCreator) {
         flash('danger', 'Accès refusé.');
         header('Location: /tenants');
@@ -63,7 +63,7 @@ if ($path === '/tenants/manage' && $method === 'GET') {
 
     $role    = $auth->getUserTenantRole($tid);
     if (!$role && $isCreator) {
-        // Safety fallback for legacy data without creator membership row.
+        // Repli de sécurité pour les données legacy sans ligne d'appartenance créateur.
         $role = 'owner';
     }
     $members = $tenantManager->getMembers($tid);
@@ -73,7 +73,7 @@ if ($path === '/tenants/manage' && $method === 'GET') {
     return;
 }
 
-// ── Update tenant info ───────────────────────────────────────────
+// ── Mettre à jour la collection ──────────────────────────────────
 if ($path === '/tenants/update' && $method === 'POST') {
     $tid  = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
     $name = trim($_POST['name'] ?? '');
@@ -81,28 +81,28 @@ if ($path === '/tenants/update' && $method === 'POST') {
     $tenant = $tenantManager->getById($tid);
     $isCreator = $tenant && (($tenant['created_by'] ?? '') === ($currentUser['id'] ?? ''));
     
-    // Check permission
+    // Vérifier la permission
     if (!$auth->canDoInTenant($tid, 'edit_settings') && !$isCreator) {
-        flash('danger', 'Vous n\'avez pas la permission de modifier ce tenant.');
+        flash('danger', 'Vous n\'avez pas la permission de modifier cette collection.');
         header("Location: /tenants/manage?id={$tid}");
         exit;
     }
     
     if ($tid && $name) {
         $tenantManager->update($tid, ['name' => $name, 'description' => $desc]);
-        flash('success', 'Tenant mis à jour.');
+        flash('success', 'Collection mise à jour.');
     }
     header("Location: /tenants/manage?id={$tid}");
     exit;
 }
 
-// ── Add member ───────────────────────────────────────────────────
+// ── Ajouter un membre ────────────────────────────────────────────
 if ($path === '/tenants/members/add' && $method === 'POST') {
     $tid   = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['tenant_id'] ?? '');
     $uid   = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['user_id'] ?? '');
     $role  = $_POST['role'] ?? 'viewer';
 
-    // Check permission
+    // Vérifier la permission
     if (!$auth->canDoInTenant($tid, 'manage_members')) {
         flash('danger', 'Vous n\'avez pas la permission d\'ajouter des membres.');
         header("Location: /tenants/manage?id={$tid}");
@@ -134,13 +134,13 @@ if ($path === '/tenants/members/add' && $method === 'POST') {
     exit;
 }
 
-// ── Update member role ───────────────────────────────────────────
+// ── Mettre à jour le rôle d'un membre ───────────────────────────
 if ($path === '/tenants/members/update' && $method === 'POST') {
     $mid  = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['membership_id'] ?? '');
     $tid  = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['tenant_id'] ?? '');
     $role = $_POST['role'] ?? 'member';
     
-    // Check permission
+    // Vérifier la permission
     if (!$auth->canDoInTenant($tid, 'manage_roles')) {
         flash('danger', 'Vous n\'avez pas la permission de modifier les rôles.');
         header("Location: /tenants/manage?id={$tid}");
@@ -181,12 +181,12 @@ if ($path === '/tenants/members/update' && $method === 'POST') {
     exit;
 }
 
-// ── Remove member ────────────────────────────────────────────────
+// ── Retirer un membre ────────────────────────────────────────────
 if ($path === '/tenants/members/remove' && $method === 'POST') {
     $mid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['membership_id'] ?? '');
     $tid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['tenant_id'] ?? '');
     
-    // Check permission
+    // Vérifier la permission
     if (!$auth->canDoInTenant($tid, 'manage_members')) {
         flash('danger', 'Vous n\'avez pas la permission de retirer des membres.');
         header("Location: /tenants/manage?id={$tid}");
@@ -210,7 +210,7 @@ if ($path === '/tenants/members/remove' && $method === 'POST') {
     exit;
 }
 
-// ── Select tenant ────────────────────────────────────────────────
+// ── Sélectionner une collection ──────────────────────────────────
 if ($path === '/tenants/select' && $method === 'POST') {
     $tid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['tenant_id'] ?? '');
     $_SESSION['current_tenant'] = $tid ?: null;
@@ -218,7 +218,7 @@ if ($path === '/tenants/select' && $method === 'POST') {
     exit;
 }
 
-// ── Delete tenant ────────────────────────────────────────────────
+// ── Supprimer une collection ─────────────────────────────────────
 if ($path === '/tenants/delete' && $method === 'POST') {
     $tid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['id'] ?? '');
     $tenant = $tid ? $tenantManager->getById($tid) : null;
@@ -227,7 +227,7 @@ if ($path === '/tenants/delete' && $method === 'POST') {
         || ($tenant && (($tenant['created_by'] ?? '') === (string)($currentUser['id'] ?? '')));
 
     if (!$isOwner) {
-        flash('danger', 'Vous n\'avez pas la permission de supprimer ce tenant.');
+        flash('danger', 'Vous n\'avez pas la permission de supprimer cette collection.');
         header('Location: /tenants');
         exit;
     }
@@ -236,31 +236,31 @@ if ($path === '/tenants/delete' && $method === 'POST') {
         try {
             $deleted = $tenantManager->delete($tid, (string)($currentUser['id'] ?? ''));
             if (!$deleted) {
-                flash('danger', 'La suppression du tenant a échoué.');
+                flash('danger', 'La suppression de la collection a échoué.');
                 header('Location: /tenants');
                 exit;
             }
             if (($_SESSION['current_tenant'] ?? '') === $tid) {
                 unset($_SESSION['current_tenant']);
             }
-            flash('success', 'Tenant déplacé dans la corbeille.');
+            flash('success', 'Collection déplacée dans la corbeille.');
         } catch (\Exception $e) {
-            flash('danger', 'Impossible de supprimer le tenant : ' . $e->getMessage());
+            flash('danger', 'Impossible de supprimer la collection : ' . $e->getMessage());
         }
     }
     header('Location: /tenants');
     exit;
 }
 
-// ── Import members page ──────────────────────────────────────────
+// ── Page d'import des membres ────────────────────────────────────
 if ($path === '/tenants/members/import' && $method === 'GET') {
     $tid = preg_replace('/[^a-zA-Z0-9]/', '', $_GET['id'] ?? '');
     if (!$tid) { header('Location: /tenants'); exit; }
 
     $tenant = $tenantManager->getById($tid);
-    if (!$tenant) { flash('danger', 'Tenant introuvable.'); header('Location: /tenants'); exit; }
+    if (!$tenant) { flash('danger', 'Collection introuvable.'); header('Location: /tenants'); exit; }
 
-    // Check permission
+    // Vérifier la permission
     if (!$auth->canDoInTenant($tid, 'manage_members')) {
         flash('danger', 'Accès refusé.');
         header('Location: /tenants');
@@ -273,12 +273,12 @@ if ($path === '/tenants/members/import' && $method === 'GET') {
     return;
 }
 
-// ── Process bulk import ──────────────────────────────────────────
+// ── Traiter l'import en masse ────────────────────────────────────
 if ($path === '/tenants/members/bulk-import' && $method === 'POST') {
     $tid = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['tenant_id'] ?? '');
     $currentRole = $auth->getUserTenantRole($tid) ?? '';
     
-    // Check permission
+    // Vérifier la permission
     if (!$auth->canDoInTenant($tid, 'manage_members')) {
         flash('danger', 'Vous n\'avez pas la permission d\'ajouter des membres.');
         header('Location: /tenants');
@@ -291,7 +291,7 @@ if ($path === '/tenants/members/bulk-import' && $method === 'POST') {
             $members = [];
             
             if (($handle = fopen($file, 'r')) !== false) {
-                // Skip header if present
+                // Ignorer l'en-tête si présent
                 $header = fgetcsv($handle, 1000, ',');
                 
                 while (($row = fgetcsv($handle, 1000, ',')) !== false) {
@@ -347,7 +347,7 @@ if ($path === '/tenants/members/bulk-import' && $method === 'POST') {
     exit;
 }
 
-// ── List tenants (default) ───────────────────────────────────────
-$pageTitle   = 'Mes tenants';
+// ── Lister les collections (par défaut) ──────────────────────────
+$pageTitle   = 'Mes collections';
 $userTenants = $tenantManager->getUserTenants($currentUser['id']);
 require __DIR__ . '/../templates/tenants.php';

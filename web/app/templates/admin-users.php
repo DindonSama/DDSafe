@@ -24,7 +24,7 @@ ob_start();
                         <th>Type</th>
                         <th>Rôle</th>
                         <th>OTP perso</th>
-                        <th>Tenants</th>
+                        <th>Collections</th>
                         <th>Créé le</th>
                         <th>Actions</th>
                     </tr>
@@ -97,7 +97,7 @@ ob_start();
                                     <button type="button" class="btn btn-sm btn-outline-info"
                                             data-bs-toggle="modal"
                                             data-bs-target="#manageTenantsModal-<?= htmlspecialchars($u['id']) ?>"
-                                            title="Gérer les tenants">
+                                            title="Gérer les collections">
                                         <i class="bi bi-building-gear"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-primary btn-edit-user"
@@ -142,7 +142,7 @@ ob_start();
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-building-gear me-2"></i>Tenants de <?= htmlspecialchars($u['name'] ?? $u['email'] ?? 'Utilisateur') ?></h5>
+                    <h5 class="modal-title"><i class="bi bi-building-gear me-2"></i>Collections de <?= htmlspecialchars($u['name'] ?? $u['email'] ?? 'Utilisateur') ?></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -152,14 +152,14 @@ ob_start();
                         <div class="row g-2">
                             <div class="col-md-6">
                                 <select name="tenant_id" class="form-select" required>
-                                    <option value="">-- Sélectionner un tenant --</option>
+                                    <option value="">-- Sélectionner une collection --</option>
                                     <?php foreach ($allTenants as $t):
                                         $tid = (string)($t['id'] ?? '');
                                         if ($tid === '' || isset($existingTenantIds[$tid])) {
                                             continue;
                                         }
                                     ?>
-                                        <option value="<?= htmlspecialchars($tid) ?>"><?= htmlspecialchars($t['name'] ?? 'Tenant') ?></option>
+                                        <option value="<?= htmlspecialchars($tid) ?>"><?= htmlspecialchars($t['name'] ?? 'Collection') ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -179,20 +179,20 @@ ob_start();
                     </form>
 
                     <?php if (empty($userMemberships)): ?>
-                        <p class="text-muted mb-0">Aucun tenant associé.</p>
+                        <p class="text-muted mb-0">Aucune collection associée.</p>
                     <?php else: ?>
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Tenant</th>
+                                        <th>Collection</th>
                                         <th>Rôle</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($userMemberships as $m):
-                                        $tenantName = $m['expand']['tenant']['name'] ?? 'Tenant';
+                                        $tenantName = $m['expand']['tenant']['name'] ?? 'Collection';
                                         $mid = (string)($m['id'] ?? '');
                                         $mrole = (string)($m['role'] ?? 'viewer');
                                     ?>
@@ -217,7 +217,7 @@ ob_start();
                                                 <?php if ($mrole === 'owner'): ?>
                                                     <span class="text-muted small">Verrouillé</span>
                                                 <?php else: ?>
-                                                    <form method="POST" action="/admin/users/tenants/remove" class="d-inline" onsubmit="return confirm('Retirer cet utilisateur de ce tenant ?')">
+                                                    <form method="POST" action="/admin/users/tenants/remove" class="d-inline" onsubmit="return confirm('Retirer cet utilisateur de cette collection ?')">
                                                         <?= csrfField() ?>
                                                         <input type="hidden" name="membership_id" value="<?= htmlspecialchars($mid) ?>">
                                                         <button type="submit" class="btn btn-sm btn-outline-danger">

@@ -76,7 +76,7 @@ ob_start();
                     </div>
                     <?php endif; ?>
                     <div class="mb-3" id="tenant-select-import"<?php if (count($otpWritableTenants) === 1): ?> style="display:none"<?php endif; ?>>
-                        <label class="form-label">Tenant cible *</label>
+                        <label class="form-label">Collection cible *</label>
                         <select name="tenant" class="form-select"<?php if (count($otpWritableTenants) !== 1): ?> required<?php endif; ?>>
                             <?php if (count($otpWritableTenants) === 1): ?>
                                 <option value="<?= htmlspecialchars($otpWritableTenants[0]['id']) ?>" selected><?= htmlspecialchars($otpWritableTenants[0]['name']) ?></option>
@@ -88,7 +88,7 @@ ob_start();
                             <?php endif; ?>
                         </select>
                         <?php if (empty($otpWritableTenants)): ?>
-                            <small class="text-muted">Aucun tenant disponible en ecriture OTP pour votre role.</small>
+                            <small class="text-muted">Aucune collection disponible en ecriture OTP pour votre role.</small>
                         <?php endif; ?>
                     </div>
                     <button type="submit" class="btn btn-success w-100" id="import-submit-btn" disabled>

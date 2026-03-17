@@ -30,7 +30,7 @@ L'extension lit les OTP via l'API DDSafe (lecture seule), sans onglet DDSafe act
 
 ## Recherche
 
-Le popup contient un champ + bouton "Rechercher" pour filtrer par nom, emetteur ou tenant.
+Le popup contient un champ + bouton "Rechercher" pour filtrer par nom, emetteur ou collection.
 
 ## Mise a jour
 

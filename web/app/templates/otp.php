@@ -102,7 +102,7 @@ ob_start();
     </div>
 </div>
 
-<!-- Tenant filter bar -->
+<!-- Collection filter bar -->
 <div class="tenant-filter-bar mb-3">
     <form method="POST" action="/tenants/select" id="tenantFilterForm">
         <?= csrfField() ?>
@@ -143,7 +143,7 @@ ob_start();
     </div>
 </div>
 
-<!-- Personal codes -->
+<!-- Codes personnels -->
     <?php if ($showPersonalCodes): ?>
     <div class="section-label">
         <i class="bi bi-person-lock"></i> Mes codes personnels
@@ -229,7 +229,7 @@ ob_start();
     <?php endif; ?>
     <?php endif; ?>
 
-    <!-- Tenant codes -->
+    <!-- Collection codes -->
     <?php if ($showTenantCodes): ?>
     <?php if (!empty($currentTenantId)): ?>
     <div class="otp-layout">
@@ -365,7 +365,7 @@ ob_start();
     <?php elseif (!empty($currentTenantId)): ?>
     <div class="empty-state">
         <div class="empty-icon"><i class="bi bi-key"></i></div>
-        <p><?= $currentFolderId !== '' ? 'Aucun code OTP dans ce dossier.' : 'Aucun code OTP à la racine de ce tenant.' ?></p>
+        <p><?= $currentFolderId !== '' ? 'Aucun code OTP dans ce dossier.' : 'Aucun code OTP à la racine de cette collection.' ?></p>
     </div>
     <?php endif; ?>
     <?php if (!empty($currentTenantId)): ?>
@@ -377,7 +377,7 @@ ob_start();
 
 <?php if ($canCreateOtp): ?>
 <?php if (!empty($currentTenantId) && $currentTenantCanManageOtp): ?>
-<!-- Edit Folder Modal -->
+<!-- Modale de modification de dossier -->
 <div class="modal fade" id="editGroupModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -450,7 +450,7 @@ function openEditGroupModal(btn) {
 </div>
 <?php endif; ?>
 
-<!-- Import URI Modal -->
+<!-- Modale d'import URI -->
 <div class="modal fade" id="importUriModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" action="/otp/import" id="importUriForm">
@@ -489,7 +489,7 @@ function openEditGroupModal(btn) {
                     <?php if (!empty($currentTenantId)): ?>
                         <input type="hidden" name="tenant" value="<?= htmlspecialchars((string)$currentTenantId) ?>">
                         <div class="mb-3">
-                            <label class="form-label">Tenant cible</label>
+                            <label class="form-label">Collection cible</label>
                             <input type="text" class="form-control" value="<?= htmlspecialchars($currentTenantName) ?>" readonly>
                         </div>
                         <div class="mb-0">
@@ -503,7 +503,7 @@ function openEditGroupModal(btn) {
                         </div>
                     <?php else: ?>
                         <div class="mb-0" id="modal-tenant-select"<?php if (count($otpWritableTenants) === 1): ?> style="display:none"<?php endif; ?>>
-                            <label class="form-label">Tenant cible *</label>
+                            <label class="form-label">Collection cible *</label>
                             <select name="tenant" class="form-select"<?php if (count($otpWritableTenants) !== 1): ?> required<?php endif; ?> id="modal-tenant-sel">
                                 <?php if (count($otpWritableTenants) === 1): ?>
                                     <option value="<?= htmlspecialchars($otpWritableTenants[0]['id']) ?>" selected><?= htmlspecialchars($otpWritableTenants[0]['name']) ?></option>
@@ -515,7 +515,7 @@ function openEditGroupModal(btn) {
                                 <?php endif; ?>
                             </select>
                             <?php if (empty($otpWritableTenants)): ?>
-                                <small class="text-muted">Aucun tenant disponible en écriture OTP pour votre rôle.</small>
+                                <small class="text-muted">Aucune collection disponible en écriture OTP pour votre rôle.</small>
                             <?php endif; ?>
                         </div>
                     <?php endif; ?>
@@ -579,7 +579,7 @@ function openEditGroupModal(btn) {
         });
     }
 
-    // Reset modal on close
+    // Réinitialiser la modale à la fermeture
     document.getElementById('importUriModal')?.addEventListener('hidden.bs.modal', function() {
         if (uriInput) uriInput.value = '';
         preview.classList.add('d-none');
@@ -589,7 +589,7 @@ function openEditGroupModal(btn) {
 })();
 </script>
 
-<!-- Add OTP Modal -->
+<!-- Modale d'ajout OTP -->
 <div class="modal fade" id="addOtpModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" action="/otp/add">
@@ -648,7 +648,7 @@ function openEditGroupModal(btn) {
                     <?php if (!empty($currentTenantId)): ?>
                         <input type="hidden" name="tenant" value="<?= htmlspecialchars((string)$currentTenantId) ?>">
                         <div class="mb-3">
-                            <label class="form-label">Tenant</label>
+                            <label class="form-label">Collection</label>
                             <input type="text" class="form-control" value="<?= htmlspecialchars($currentTenantName) ?>" readonly>
                         </div>
                         <div class="mb-3">
@@ -662,9 +662,9 @@ function openEditGroupModal(btn) {
                         </div>
                     <?php else: ?>
                         <div class="mb-3" id="tenant-select-add">
-                            <label class="form-label">Tenant *</label>
+                            <label class="form-label">Collection *</label>
                             <select name="tenant" class="form-select" required>
-                                <option value="">-- Choisir un tenant --</option>
+                                <option value="">-- Choisir une collection --</option>
                                 <?php foreach ($otpWritableTenants as $t): ?>
                                     <option value="<?= htmlspecialchars($t['id']) ?>">
                                         <?= htmlspecialchars($t['name']) ?>
@@ -672,7 +672,7 @@ function openEditGroupModal(btn) {
                                 <?php endforeach; ?>
                             </select>
                             <?php if (empty($otpWritableTenants)): ?>
-                                <small class="text-muted">Aucun tenant avec permission d'ecriture OTP pour votre role.</small>
+                                <small class="text-muted">Aucune collection avec permission d'ecriture OTP pour votre role.</small>
                             <?php endif; ?>
                         </div>
                     <?php endif; ?>
@@ -689,7 +689,7 @@ function openEditGroupModal(btn) {
 </div>
 <?php endif; ?>
 
-<!-- Edit OTP Modal -->
+<!-- Modale de modification OTP -->
 <div class="modal fade" id="editOtpModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" action="/otp/edit" id="editOtpForm">
