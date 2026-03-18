@@ -4,8 +4,10 @@
 /** @var bool $oidcEnabled */
 /** @var string $oidcButtonLabel */
 /** @var string $rememberedIdentity */
+/** @var string $rememberedLoginType */
 $flashes = getFlash();
 $appName = $config['app_name'] ?? 'DDSafe';
+$useLdapTab = $ldapEnabled && (($rememberedLoginType ?? 'local') === 'ldap');
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -36,12 +38,12 @@ $appName = $config['app_name'] ?? 'DDSafe';
         <?php if ($ldapEnabled): ?>
         <ul class="nav nav-tabs-dark mb-3" role="tablist">
             <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-local" type="button">
+                <button class="nav-link<?= !$useLdapTab ? ' active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-local" type="button">
                     <i class="bi bi-envelope me-1"></i>Compte local
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-ldap" type="button">
+                <button class="nav-link<?= $useLdapTab ? ' active' : '' ?>" data-bs-toggle="tab" data-bs-target="#tab-ldap" type="button">
                     <i class="bi bi-windows me-1"></i>Active Directory
                 </button>
             </li>
@@ -50,7 +52,7 @@ $appName = $config['app_name'] ?? 'DDSafe';
 
         <div class="tab-content">
             <!-- Local login -->
-            <div class="tab-pane fade<?= !$ldapEnabled ? ' show active' : '' ?>" id="tab-local">
+            <div class="tab-pane fade<?= (!$ldapEnabled || !$useLdapTab) ? ' show active' : '' ?>" id="tab-local">
                 <div class="login-card">
                     <form method="POST" action="/login">
                         <?= csrfField() ?>
@@ -58,7 +60,7 @@ $appName = $config['app_name'] ?? 'DDSafe';
                         <div class="mb-3">
                             <label for="local-email" class="form-label">Email</label>
                             <input type="email" class="form-control" id="local-email" name="identity"
-                                   required autofocus placeholder="votre@email.com"
+                                required <?= (!$ldapEnabled || !$useLdapTab) ? 'autofocus' : '' ?> placeholder="votre@email.com"
                                    value="<?= htmlspecialchars($rememberedIdentity ?? '') ?>">
                         </div>
                         <div class="mb-3">
@@ -82,7 +84,7 @@ $appName = $config['app_name'] ?? 'DDSafe';
 
             <?php if ($ldapEnabled): ?>
             <!-- LDAP login -->
-            <div class="tab-pane fade show active" id="tab-ldap">
+            <div class="tab-pane fade<?= $useLdapTab ? ' show active' : '' ?>" id="tab-ldap">
                 <div class="login-card">
                     <form method="POST" action="/login">
                         <?= csrfField() ?>
@@ -90,7 +92,7 @@ $appName = $config['app_name'] ?? 'DDSafe';
                         <div class="mb-3">
                             <label for="ldap-user" class="form-label">Nom d'utilisateur AD</label>
                             <input type="text" class="form-control" id="ldap-user" name="identity"
-                                   required placeholder="prenom.nom"
+                                required <?= $useLdapTab ? 'autofocus' : '' ?> placeholder="prenom.nom"
                                    value="<?= htmlspecialchars($rememberedIdentity ?? '') ?>">
                         </div>
                         <div class="mb-3">

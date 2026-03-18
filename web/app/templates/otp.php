@@ -4,19 +4,31 @@
 /** @var array $userTenants */
 /** @var array $otpWritableTenants */
 /** @var array $tenantManageOtpMap */
+/** @var array $tenantExportOtpMap */
+/** @var array $tenantEditOtpMap */
+/** @var array $tenantDeleteOtpMap */
 /** @var bool $canCreateOtp */
+/** @var bool $canExportOtp */
 /** @var string $currentTenantId */
 /** @var string $currentTenantName */
+/** @var string $viewMode */
 /** @var array $tenantGroups */
 /** @var array $tenantFolders */
 /** @var string $currentFolderId */
 /** @var string $currentFolderName */
 /** @var array $rootTenantCodes */
 /** @var bool $currentTenantCanManageOtp */
+/** @var bool $currentTenantCanExportOtp */
+/** @var bool $currentTenantCanEditOtp */
+/** @var bool $currentTenantCanDeleteOtp */
+/** @var string $currentTenantRole */
 /** @var string $search */
 /** @var string $currentScope */
 /** @var bool $showPersonalCodes */
 /** @var bool $showTenantCodes */
+/** @var string $personalSectionTitle */
+/** @var bool $isAppAdmin */
+/** @var string $selectedPersonalUserId */
 $iconColors = ['#5865f2','#3ba55c','#ed4245','#faa61a','#eb459e','#57f287','#5dadec','#fee75c'];
 $otpReturnPath = !empty($currentFolderId) ? '/otp?folder=' . rawurlencode($currentFolderId) : '/otp';
 
@@ -88,10 +100,18 @@ ob_start();
 <div class="page-header">
     <h3><i class="bi bi-key-fill me-2"></i>Codes OTP</h3>
     <div class="d-flex gap-2 align-items-center">
-        <?php if ($canCreateOtp): ?>
-            <a href="/otp/import" class="btn btn-ghost btn-sm">
-                <i class="bi bi-qr-code-scan me-1"></i>Importer QR
+        <div class="btn-group btn-group-sm" role="group" aria-label="Mode d'affichage OTP">
+            <a href="/otp?view=cards<?= $currentScope === 'personal' ? '&scope=personal' : '' ?>" class="btn <?= ($viewMode ?? 'cards') === 'cards' ? 'btn-accent' : 'btn-outline-secondary' ?>">
+                <i class="bi bi-grid-3x3-gap me-1"></i>Cartes
             </a>
+            <a href="/otp?view=table<?= $currentScope === 'personal' ? '&scope=personal' : '' ?>" class="btn <?= ($viewMode ?? 'cards') === 'table' ? 'btn-accent' : 'btn-outline-secondary' ?>">
+                <i class="bi bi-table me-1"></i>Tableau
+            </a>
+        </div>
+        <?php if ($canCreateOtp): ?>
+            <button type="button" class="btn btn-ghost btn-sm" data-bs-toggle="modal" data-bs-target="#importQrModal">
+                <i class="bi bi-qr-code-scan me-1"></i>Importer QR
+            </button>
             <button class="btn btn-ghost btn-sm" data-bs-toggle="modal" data-bs-target="#importUriModal">
                 <i class="bi bi-link-45deg me-1"></i>Importer URI
             </button>
@@ -101,6 +121,23 @@ ob_start();
         <?php endif; ?>
     </div>
 </div>
+
+<?php if (!empty($canExportOtp)): ?>
+<div id="selection-action-bar" class="alert alert-info d-none d-flex align-items-center justify-content-between gap-2 py-2">
+    <div><strong id="selected-otp-count">0</strong> code(s) sélectionné(s)</div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="select-all-otp-btn" title="Cocher tous les codes affichés">
+            <i class="bi bi-check2-square me-1"></i>Tout sélectionner
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="clear-all-otp-btn" title="Décocher tous les codes" disabled>
+            <i class="bi bi-square me-1"></i>Tout désélectionner
+        </button>
+        <button type="button" class="btn btn-primary btn-sm" id="export-selected-uri-btn" title="Exporter les codes cochés sous forme d'URI" disabled>
+            <i class="bi bi-link-45deg me-1"></i>Exporter URI (0)
+        </button>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Collection filter bar -->
 <div class="tenant-filter-bar mb-3">
@@ -146,7 +183,7 @@ ob_start();
 <!-- Codes personnels -->
     <?php if ($showPersonalCodes): ?>
     <div class="section-label">
-        <i class="bi bi-person-lock"></i> Mes codes personnels
+        <i class="bi bi-person-lock"></i> <?= htmlspecialchars($personalSectionTitle ?? 'Mes codes personnels') ?>
         <span class="badge bg-secondary"><?= count($personalCodes) ?></span>
     </div>
 
@@ -156,11 +193,68 @@ ob_start();
             <p>Aucun code personnel.</p>
         </div>
     <?php else: ?>
+        <?php if (($viewMode ?? 'cards') === 'table'): ?>
+        <div class="table-responsive mb-4">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <?php if (!empty($canExportOtp)): ?><th style="width:42px"></th><?php endif; ?>
+                        <th>Nom</th>
+                        <th>Émetteur</th>
+                        <th>Type</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($personalCodes as $code):
+                        $canManagePersonalCode = !empty($currentUser['is_app_admin']) || ((string)($code['owner'] ?? '') === (string)($currentUser['id'] ?? ''));
+                        $canExportPersonalCode = $canManagePersonalCode;
+                    ?>
+                    <tr class="otp-item" data-name="<?= htmlspecialchars(strtolower($code['name'])) ?>" data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>">
+                        <?php if (!empty($canExportOtp)): ?>
+                        <td>
+                            <?php if ($canExportPersonalCode): ?>
+                            <input type="checkbox" class="form-check-input otp-export-select" data-otp-id="<?= htmlspecialchars($code['id']) ?>" aria-label="Sélectionner <?= htmlspecialchars($code['name']) ?> pour export URI">
+                            <?php endif; ?>
+                        </td>
+                        <?php endif; ?>
+                        <td><?= htmlspecialchars($code['name']) ?></td>
+                        <td><?= htmlspecialchars($code['issuer'] ?? '-') ?></td>
+                        <td><span class="badge text-bg-primary">Personnel</span></td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <?php if ($canManagePersonalCode): ?>
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-edit-otp"
+                                        data-id="<?= htmlspecialchars($code['id']) ?>"
+                                        data-name="<?= htmlspecialchars($code['name']) ?>"
+                                        data-issuer="<?= htmlspecialchars($code['issuer'] ?? '') ?>"
+                                        data-delete-scope="personal"
+                                        data-secret="<?= htmlspecialchars($code['secret'] ?? '') ?>"
+                                        data-algorithm="<?= htmlspecialchars($code['algorithm'] ?? 'SHA1') ?>"
+                                        data-digits="<?= htmlspecialchars((string)($code['digits'] ?? 6)) ?>"
+                                        data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>"
+                                        data-can-delete="1">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <?php endif; ?>
+                                <?php if ($canExportPersonalCode): ?>
+                                <a class="btn btn-sm btn-outline-secondary" href="/otp/export?ids=<?= htmlspecialchars($code['id']) ?>"><i class="bi bi-qr-code"></i></a>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php else: ?>
         <div class="otp-grid mb-4" id="personal-codes">
             <?php foreach ($personalCodes as $i => $code):
                 $avatarIcon   = otpIssuerIcon((string)($code['issuer'] ?? ''));
                 $avatarLetter = strtoupper(mb_substr($code['issuer'] ?: $code['name'], 0, 1));
                 $avatarColor  = $avatarIcon ? '' : otpIssuerColor($code['issuer'] ?: $code['name'], $iconColors);
+                $canExportPersonalCode = !empty($currentUser['is_app_admin']) || ((string)($code['owner'] ?? '') === (string)($currentUser['id'] ?? ''));
+                $canManagePersonalCode = $canExportPersonalCode;
             ?>
                 <div class="otp-account otp-item"
                      role="button"
@@ -170,17 +264,29 @@ ob_start();
                      data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>"
                      onclick="copyOtpCode(this, '<?= htmlspecialchars($code['id']) ?>')" onkeydown="handleOtpCardKey(event, this, '<?= htmlspecialchars($code['id']) ?>')">
 
+                    <?php if ($canExportPersonalCode): ?>
+                    <div class="position-absolute top-0 start-0 p-2" onclick="event.stopPropagation()">
+                        <input type="checkbox"
+                               class="form-check-input otp-export-select"
+                               title="Sélectionner pour export URI"
+                               data-otp-id="<?= htmlspecialchars($code['id']) ?>"
+                               aria-label="Sélectionner <?= htmlspecialchars($code['name']) ?> pour export URI">
+                    </div>
+                    <?php endif; ?>
+
                     <div class="account-actions" onclick="event.stopPropagation()">
                         <div class="dropdown d-inline">
                             <button type="button" class="btn-action" data-bs-toggle="dropdown">
                                 <i class="bi bi-three-dots"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
+                                <?php if ($canManagePersonalCode): ?>
                                 <li>
                                     <button type="button" class="dropdown-item btn-edit-otp"
                                             data-id="<?= htmlspecialchars($code['id']) ?>"
                                             data-name="<?= htmlspecialchars($code['name']) ?>"
                                             data-issuer="<?= htmlspecialchars($code['issuer'] ?? '') ?>"
+                                            data-delete-scope="personal"
                                             data-secret="<?= htmlspecialchars($code['secret'] ?? '') ?>"
                                             data-algorithm="<?= htmlspecialchars($code['algorithm'] ?? 'SHA1') ?>"
                                             data-digits="<?= htmlspecialchars((string)($code['digits'] ?? 6)) ?>"
@@ -189,11 +295,14 @@ ob_start();
                                         <i class="bi bi-pencil me-2"></i>Modifier
                                     </button>
                                 </li>
+                                <?php endif; ?>
+                                <?php if ($canExportPersonalCode): ?>
                                 <li>
                                     <a class="dropdown-item" href="/otp/export?ids=<?= htmlspecialchars($code['id']) ?>">
                                         <i class="bi bi-qr-code me-2"></i>Exporter QR
                                     </a>
                                 </li>
+                                <?php endif; ?>
                             </ul>
                         </div>
                     </div>
@@ -226,6 +335,7 @@ ob_start();
                 </div>
             <?php endforeach; ?>
         </div>
+        <?php endif; ?>
     <?php endif; ?>
     <?php endif; ?>
 
@@ -279,8 +389,87 @@ ob_start();
             <?= htmlspecialchars($currentTenantName) ?>
         <?php endif; ?>
         <span class="badge bg-success"><?= count($tenantCodes) ?></span>
+        <?php if (!empty($currentTenantId)): ?>
+            <?php if (!$currentTenantCanEditOtp && !$currentTenantCanDeleteOtp): ?>
+                <span class="badge text-bg-secondary ms-1">Lecture seule</span>
+            <?php endif; ?>
+            <?php if ($currentTenantCanExportOtp): ?>
+                <span class="badge text-bg-info ms-1">Export autorisé</span>
+            <?php endif; ?>
+            <?php if (in_array($currentTenantRole, ['owner', 'admin'], true) || !empty($currentUser['is_app_admin'])): ?>
+                <span class="badge text-bg-warning ms-1">Admin collection</span>
+            <?php endif; ?>
+        <?php endif; ?>
     </div>
 
+    <?php if (($viewMode ?? 'cards') === 'table'): ?>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <?php if (!empty($canExportOtp)): ?><th style="width:42px"></th><?php endif; ?>
+                    <th>Nom</th>
+                    <th>Émetteur</th>
+                    <th>Collection</th>
+                    <th>Dossier</th>
+                    <th>Droits</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($tenantCodes as $code):
+                    $tenantId = (string)($code['tenant'] ?? '');
+                    $groupName = (string)($code['expand']['group']['name'] ?? '');
+                    $canManageThisTenant = !empty($tenantManageOtpMap[$tenantId]);
+                    $canEditTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantEditOtpMap[$tenantId]);
+                    $canDeleteTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantDeleteOtpMap[$tenantId]);
+                    $canExportTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantExportOtpMap[$tenantId]);
+                ?>
+                <tr class="otp-item" data-name="<?= htmlspecialchars(strtolower($code['name'])) ?>" data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>">
+                    <?php if (!empty($canExportOtp)): ?>
+                    <td>
+                        <?php if ($canExportTenantCode): ?>
+                        <input type="checkbox" class="form-check-input otp-export-select" data-otp-id="<?= htmlspecialchars($code['id']) ?>" aria-label="Sélectionner <?= htmlspecialchars($code['name']) ?> pour export URI">
+                        <?php endif; ?>
+                    </td>
+                    <?php endif; ?>
+                    <td><?= htmlspecialchars($code['name']) ?></td>
+                    <td><?= htmlspecialchars($code['issuer'] ?? '-') ?></td>
+                    <td><?= htmlspecialchars($currentTenantName) ?></td>
+                    <td><?= htmlspecialchars($groupName !== '' ? $groupName : 'Racine') ?></td>
+                    <td>
+                        <?php if (!$canEditTenantCode && !$canDeleteTenantCode): ?><span class="badge text-bg-secondary">Lecture seule</span><?php endif; ?>
+                        <?php if ($canExportTenantCode): ?><span class="badge text-bg-info">Export autorisé</span><?php endif; ?>
+                        <?php if ($canManageThisTenant || !empty($currentUser['is_app_admin'])): ?><span class="badge text-bg-warning">Admin collection</span><?php endif; ?>
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <?php if ($canEditTenantCode): ?>
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-edit-otp"
+                                    data-id="<?= htmlspecialchars($code['id']) ?>"
+                                    data-name="<?= htmlspecialchars($code['name']) ?>"
+                                    data-issuer="<?= htmlspecialchars($code['issuer'] ?? '') ?>"
+                                    data-delete-scope="tenant"
+                                    data-secret="<?= htmlspecialchars($code['secret'] ?? '') ?>"
+                                    data-algorithm="<?= htmlspecialchars($code['algorithm'] ?? 'SHA1') ?>"
+                                    data-digits="<?= htmlspecialchars((string)($code['digits'] ?? 6)) ?>"
+                                    data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>"
+                                    data-group="<?= htmlspecialchars((string)($code['group'] ?? '')) ?>"
+                                    data-can-delete="<?= $canDeleteTenantCode ? '1' : '0' ?>">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <?php endif; ?>
+                            <?php if ($canExportTenantCode): ?>
+                            <a class="btn btn-sm btn-outline-secondary" href="/otp/export?ids=<?= htmlspecialchars($code['id']) ?>"><i class="bi bi-qr-code"></i></a>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php else: ?>
     <div class="otp-grid mb-4" id="tenant-codes">
         <?php foreach ($tenantCodes as $i => $code):
             $avatarIcon   = otpIssuerIcon((string)($code['issuer'] ?? ''));
@@ -290,7 +479,10 @@ ob_start();
             $groupName = (string)($code['expand']['group']['name'] ?? '');
             $canManageThisTenant = !empty($tenantManageOtpMap[$tenantId]);
             $isCodeOwner = (string)($code['owner'] ?? '') === (string)($currentUser['id'] ?? '');
-            $canManageTenantCode = !empty($currentUser['is_app_admin']) || $canManageThisTenant || $isCodeOwner;
+            $canEditTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantEditOtpMap[$tenantId]);
+            $canDeleteTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantDeleteOtpMap[$tenantId]);
+            $canManageTenantCode = $canEditTenantCode || $isCodeOwner;
+            $canExportTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantExportOtpMap[$tenantId]);
         ?>
             <div class="otp-account is-tenant otp-item"
                  role="button"
@@ -299,6 +491,16 @@ ob_start();
                  data-name="<?= htmlspecialchars(strtolower($code['name'])) ?>"
                  data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>"
                  onclick="copyOtpCode(this, '<?= htmlspecialchars($code['id']) ?>')" onkeydown="handleOtpCardKey(event, this, '<?= htmlspecialchars($code['id']) ?>')">
+
+                <?php if ($canExportTenantCode): ?>
+                <div class="position-absolute top-0 start-0 p-2" onclick="event.stopPropagation()">
+                    <input type="checkbox"
+                           class="form-check-input otp-export-select"
+                           title="Sélectionner pour export URI"
+                           data-otp-id="<?= htmlspecialchars($code['id']) ?>"
+                           aria-label="Sélectionner <?= htmlspecialchars($code['name']) ?> pour export URI">
+                </div>
+                <?php endif; ?>
 
                 <div class="account-actions" onclick="event.stopPropagation()">
                     <div class="dropdown d-inline">
@@ -312,21 +514,24 @@ ob_start();
                                         data-id="<?= htmlspecialchars($code['id']) ?>"
                                         data-name="<?= htmlspecialchars($code['name']) ?>"
                                         data-issuer="<?= htmlspecialchars($code['issuer'] ?? '') ?>"
+                                        data-delete-scope="tenant"
                                         data-secret="<?= htmlspecialchars($code['secret'] ?? '') ?>"
                                         data-algorithm="<?= htmlspecialchars($code['algorithm'] ?? 'SHA1') ?>"
                                         data-digits="<?= htmlspecialchars((string)($code['digits'] ?? 6)) ?>"
                                         data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>"
                                         data-group="<?= htmlspecialchars((string)($code['group'] ?? '')) ?>"
-                                        data-can-delete="1">
+                                        data-can-delete="<?= $canDeleteTenantCode ? '1' : '0' ?>">
                                     <i class="bi bi-pencil me-2"></i>Modifier
                                 </button>
                             </li>
                             <?php endif; ?>
+                            <?php if ($canExportTenantCode): ?>
                             <li>
                                 <a class="dropdown-item" href="/otp/export?ids=<?= htmlspecialchars($code['id']) ?>">
                                     <i class="bi bi-qr-code me-2"></i>Exporter QR
                                 </a>
                             </li>
+                            <?php endif; ?>
                         </ul>
                     </div>
                 </div>
@@ -362,6 +567,7 @@ ob_start();
             </div>
         <?php endforeach; ?>
     </div>
+    <?php endif; ?>
     <?php elseif (!empty($currentTenantId)): ?>
     <div class="empty-state">
         <div class="empty-icon"><i class="bi bi-key"></i></div>
@@ -449,6 +655,35 @@ function openEditGroupModal(btn) {
     </div>
 </div>
 <?php endif; ?>
+
+<!-- Modale d'import QR -->
+<div class="modal fade" id="importQrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-qr-code-scan me-2"></i>Importer par QR Code</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Scannez un QR code ou chargez une image. Le résultat sera envoyé dans la modale d'import URI.</p>
+                <div id="qr-reader-modal" class="mb-3"></div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" id="btn-start-scan-modal">
+                        <i class="bi bi-camera-video me-1"></i>Démarrer la caméra
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btn-upload-qr-modal">
+                        <i class="bi bi-upload me-1"></i>Charger une image
+                    </button>
+                    <input type="file" id="qr-file-input-modal" accept="image/*" class="d-none">
+                </div>
+                <div id="qr-modal-error" class="alert alert-warning mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Modale d'import URI -->
 <div class="modal fade" id="importUriModal" tabindex="-1">
@@ -585,6 +820,125 @@ function openEditGroupModal(btn) {
         preview.classList.add('d-none');
         importBtn.disabled = true;
         importBtn.innerHTML = '<i class="bi bi-download me-1"></i>Importer';
+    });
+})();
+</script>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+(function() {
+    const qrModalEl = document.getElementById('importQrModal');
+    if (!qrModalEl) return;
+
+    const startBtn = document.getElementById('btn-start-scan-modal');
+    const uploadBtn = document.getElementById('btn-upload-qr-modal');
+    const fileInput = document.getElementById('qr-file-input-modal');
+    const errorBox = document.getElementById('qr-modal-error');
+    const uriInput = document.getElementById('modal-otp-uri');
+    const importUriModalEl = document.getElementById('importUriModal');
+
+    let scanner = null;
+    let scanning = false;
+
+    function setError(msg) {
+        if (!errorBox) return;
+        if (!msg) {
+            errorBox.classList.add('d-none');
+            errorBox.textContent = '';
+            return;
+        }
+        errorBox.textContent = msg;
+        errorBox.classList.remove('d-none');
+    }
+
+    function stopScan() {
+        if (scanner && scanning) {
+            scanner.stop().catch(() => {});
+            scanning = false;
+        }
+        if (startBtn) {
+            startBtn.innerHTML = '<i class="bi bi-camera-video me-1"></i>Démarrer la caméra';
+        }
+    }
+
+    function appendUriToImportModal(decodedText) {
+        if (!uriInput) return;
+        const existing = uriInput.value.trim();
+        uriInput.value = existing ? existing + '\n' + decodedText : decodedText;
+        uriInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+        bootstrap.Modal.getOrCreateInstance(qrModalEl).hide();
+        if (importUriModalEl) {
+            bootstrap.Modal.getOrCreateInstance(importUriModalEl).show();
+        }
+    }
+
+    startBtn?.addEventListener('click', function() {
+        setError('');
+
+        if (scanning) {
+            stopScan();
+            return;
+        }
+
+        if (typeof Html5Qrcode === 'undefined') {
+            setError('Librairie scanner QR indisponible.');
+            return;
+        }
+
+        scanner = new Html5Qrcode('qr-reader-modal');
+        scanner.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            function(decodedText) {
+                appendUriToImportModal(decodedText);
+                stopScan();
+            }
+        ).then(function() {
+            scanning = true;
+            startBtn.innerHTML = '<i class="bi bi-stop-fill me-1"></i>Arrêter la caméra';
+        }).catch(function(err) {
+            const msg = String(err || 'Erreur caméra');
+            if (msg.includes('not supported') || msg.includes('getUserMedia')) {
+                setError('La caméra nécessite HTTPS. Utilisez "Charger une image".');
+            } else {
+                setError('Impossible d\'accéder à la caméra: ' + msg);
+            }
+            stopScan();
+        });
+    });
+
+    uploadBtn?.addEventListener('click', function() {
+        setError('');
+        fileInput?.click();
+    });
+
+    fileInput?.addEventListener('change', function(e) {
+        setError('');
+        const files = e.target.files || [];
+        if (!files.length) return;
+
+        if (typeof Html5Qrcode === 'undefined') {
+            setError('Librairie scanner QR indisponible.');
+            return;
+        }
+
+        const tempScanner = new Html5Qrcode('qr-reader-modal');
+        tempScanner.scanFile(files[0], true)
+            .then(function(decodedText) {
+                appendUriToImportModal(decodedText);
+            })
+            .catch(function() {
+                setError('Impossible de lire le QR code de cette image.');
+            })
+            .finally(function() {
+                fileInput.value = '';
+            });
+    });
+
+    qrModalEl.addEventListener('hidden.bs.modal', function() {
+        stopScan();
+        setError('');
     });
 })();
 </script>
@@ -758,8 +1112,7 @@ function openEditGroupModal(btn) {
                     <?php endif; ?>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-danger me-auto" id="edit-otp-delete-btn"
-                            onclick="(function(){var src=document.getElementById('edit-otp-id');var dst=document.getElementById('edit-delete-otp-id');var form=document.getElementById('deleteOtpForm');if(dst&&src){dst.value=src.value||'';}if(!dst||!dst.value){alert('Impossible de supprimer: identifiant OTP manquant.');return;}if(form){form.requestSubmit();}})();">
+                    <button type="button" class="btn btn-outline-danger me-auto" id="edit-otp-delete-btn">
                         <i class="bi bi-trash me-1"></i>Supprimer
                     </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -767,12 +1120,41 @@ function openEditGroupModal(btn) {
                 </div>
             </div>
         </form>
-        <form method="POST" action="/otp/delete" id="deleteOtpForm"
-              onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce code OTP ?');">
+        <form method="POST" action="/otp/delete" id="deleteOtpForm">
             <?= csrfField() ?>
             <input type="hidden" name="id" id="edit-delete-otp-id">
             <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
         </form>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteOtpConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-trash3 me-2 text-danger"></i>Supprimer ce code OTP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-start gap-3">
+                    <div id="delete-otp-icon-wrap"
+                         class="rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width:48px;height:48px;background:rgba(220,53,69,.12);color:#dc3545;">
+                        <i id="delete-otp-icon" class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1"><span id="delete-otp-scope-label" class="badge text-bg-danger-subtle border border-danger-subtle text-danger-emphasis me-2">Code OTP</span><strong id="delete-otp-name">ce code OTP</strong> sera déplacé dans la corbeille.</p>
+                        <p class="text-muted mb-0" id="delete-otp-description">Vous pourrez encore le restaurer depuis l'administration.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-otp-btn">
+                    <i class="bi bi-trash me-1"></i>Supprimer
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 

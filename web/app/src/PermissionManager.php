@@ -23,6 +23,10 @@ class PermissionManager
             'can_manage_roles',
             'can_edit_settings',
             'can_manage_otp',
+            'can_create_otp',
+            'can_export_otp',
+            'can_edit_otp',
+            'can_delete_otp',
         ],
         'admin' => [
             'can_view_tenant',
@@ -30,10 +34,18 @@ class PermissionManager
             'can_manage_roles',
             'can_edit_settings',
             'can_manage_otp',
+            'can_create_otp',
+            'can_export_otp',
+            'can_edit_otp',
+            'can_delete_otp',
         ],
         'member' => [
             'can_view_tenant',
             'can_manage_otp',
+            'can_create_otp',
+            'can_export_otp',
+            'can_edit_otp',
+            'can_delete_otp',
         ],
         'viewer' => [
             'can_view_tenant',
@@ -66,8 +78,8 @@ class PermissionManager
     {
         return match ($role) {
             'owner' => 'Propriétaire — mêmes droits que administrateur (non modifiable)',
-            'admin' => 'Administrateur — gère les membres et les codes OTP',
-            'member' => 'Membre — peut ajouter et gérer les codes OTP',
+            'admin' => 'Administrateur — gère membres, paramètres et OTP',
+            'member' => 'Membre — peut créer, exporter, modifier et supprimer des OTP',
             'viewer' => 'Observateur — lecture seule',
             default => 'Rôle inconnu',
         };

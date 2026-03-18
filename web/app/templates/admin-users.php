@@ -48,6 +48,8 @@ ob_start();
                             <td>
                                 <?php if (!empty($u['is_ad_user'])): ?>
                                     <span class="badge bg-info"><i class="bi bi-windows me-1"></i>AD</span>
+                                <?php elseif (!empty($u['is_oidc_user'])): ?>
+                                    <span class="badge bg-primary"><i class="bi bi-box-arrow-in-right me-1"></i>OIDC</span>
                                 <?php else: ?>
                                     <span class="badge bg-success">Local</span>
                                 <?php endif; ?>
@@ -94,6 +96,11 @@ ob_start();
                             </td>
                             <td>
                                 <div class="d-flex gap-1">
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                       href="/otp?scope=personal&user_id=<?= htmlspecialchars($u['id']) ?>"
+                                       title="Voir les OTP personnels">
+                                        <i class="bi bi-key"></i>
+                                    </a>
                                     <button type="button" class="btn btn-sm btn-outline-info"
                                             data-bs-toggle="modal"
                                             data-bs-target="#manageTenantsModal-<?= htmlspecialchars($u['id']) ?>"
@@ -104,6 +111,8 @@ ob_start();
                                             data-id="<?= htmlspecialchars($u['id']) ?>"
                                             data-name="<?= htmlspecialchars($u['name'] ?? '') ?>"
                                             data-email="<?= htmlspecialchars($u['email'] ?? '') ?>"
+                                            data-is-ad-user="<?= !empty($u['is_ad_user']) ? '1' : '0' ?>"
+                                            data-is-oidc-user="<?= !empty($u['is_oidc_user']) ? '1' : '0' ?>"
                                             title="Modifier">
                                         <i class="bi bi-pencil"></i>
                                     </button>
@@ -315,8 +324,9 @@ ob_start();
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Nouveau mot de passe</label>
-                        <input type="password" name="password" class="form-control" minlength="8"
+                        <input type="password" name="password" id="edit-user-password" class="form-control" minlength="8"
                                placeholder="Laisser vide pour ne pas changer">
+                        <small class="text-muted" id="edit-user-password-help">Laisser vide pour ne pas changer.</small>
                     </div>
                 </div>
                 <div class="modal-footer">

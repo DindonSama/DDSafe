@@ -17,6 +17,10 @@ $pb            = new \App\PocketBaseClient($config['pocketbase']['url']);
 $auth          = new \App\Auth($pb, $config);
 $otpManager    = new \App\OTPManager($pb, $config['app_secret']);
 $tenantManager = new \App\TenantManager($pb);
+$backupExporter = new \App\BackupExporter($pb);
+$maxLogEntries = max(50, (int)($config['log_max_entries'] ?? 500));
+$auditLogger   = new \App\AuditLogger($pb, $maxLogEntries);
+$securityLogger = new \App\SecurityLogger($pb, $maxLogEntries);
 
 // ── Auto-setup on first run ──────────────────────────────────────
 $setup = new \App\Setup($pb, $config);
@@ -82,10 +86,11 @@ $isPublic     = in_array($path, $publicRoutes, true);
 
 // Auto logout after 15 minutes of inactivity.
 if (!$isPublic && $auth->isAuthenticated()) {
-    $idleTimeout = 15 * 60;
+    $idleTimeout = max(60, (int)($config['session_timeout_seconds'] ?? 900));
     $lastActivity = (int)($_SESSION['last_activity'] ?? 0);
 
     if ($lastActivity > 0 && (time() - $lastActivity) > $idleTimeout) {
+        $securityLogger->logAuthFailure((string)($currentUser['email'] ?? ''), 'session', 'session_timeout');
         $auth->logout();
         session_regenerate_id(true);
         $_SESSION['flash'][] = [
@@ -116,6 +121,24 @@ if ($method === 'POST' && !str_starts_with($path, '/api/')) {
 $currentUser = $auth->getCurrentUser();
 
 if (!empty($currentUser)) {
+    // Keep user flags in sync with PocketBase so admin changes apply immediately.
+    $currentUserId = (string)($currentUser['id'] ?? '');
+    if ($currentUserId !== '') {
+        try {
+            $freshUser = $pb->getRecord('users', $currentUserId);
+            if (!empty($freshUser)) {
+                $currentUser['email'] = (string)($freshUser['email'] ?? ($currentUser['email'] ?? ''));
+                $currentUser['name'] = (string)($freshUser['name'] ?? ($currentUser['name'] ?? ''));
+                $currentUser['is_app_admin'] = !empty($freshUser['is_app_admin']);
+                $currentUser['allow_personal_otp'] = !empty($freshUser['allow_personal_otp']);
+                $currentUser['is_ad_user'] = !empty($freshUser['is_ad_user']);
+                $currentUser['is_oidc_user'] = !empty($freshUser['is_oidc_user']);
+            }
+        } catch (\Exception) {
+            // Ignore sync failures and continue with session user snapshot.
+        }
+    }
+
     $userTenants = $tenantManager->getUserTenants((string)$currentUser['id']);
     $canManageAnyTenant = false;
 

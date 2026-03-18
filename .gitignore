@@ -4,6 +4,9 @@
 # Données PocketBase (bind mount)
 pb_data/
 
+# Backups automatiques (bind mount)
+backups/
+
 # Cache Composer (bind mount)
 web/composer/
 

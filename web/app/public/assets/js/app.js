@@ -117,8 +117,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const editOtpDeleteBtn = document.getElementById('edit-otp-delete-btn');
     const editDeleteOtpIdInput = document.getElementById('edit-delete-otp-id');
     const editOtpIdInput = document.getElementById('edit-otp-id');
+    const editOtpNameInput = document.getElementById('edit-otp-name');
     const editOtpGroupInput = document.getElementById('edit-otp-group');
     const deleteOtpForm = document.getElementById('deleteOtpForm');
+    const deleteOtpConfirmModalEl = document.getElementById('deleteOtpConfirmModal');
+    const confirmDeleteOtpBtn = document.getElementById('confirm-delete-otp-btn');
+    const deleteOtpNameEl = document.getElementById('delete-otp-name');
+    const deleteOtpScopeLabelEl = document.getElementById('delete-otp-scope-label');
+    const deleteOtpDescriptionEl = document.getElementById('delete-otp-description');
+    const deleteOtpIconWrapEl = document.getElementById('delete-otp-icon-wrap');
+    const deleteOtpIconEl = document.getElementById('delete-otp-icon');
+    const selectAllOtpBtn = document.getElementById('select-all-otp-btn');
+    const clearAllOtpBtn = document.getElementById('clear-all-otp-btn');
+    const exportSelectedUriBtn = document.getElementById('export-selected-uri-btn');
+    const selectionActionBar = document.getElementById('selection-action-bar');
+    const selectedOtpCountEl = document.getElementById('selected-otp-count');
 
     function setSecretVisibility(visible) {
         if (!editOtpSecretInput || !toggleEditOtpSecretBtn) return;
@@ -160,6 +173,13 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('edit-otp-algorithm').value = (btn.dataset.algorithm || 'SHA1').toUpperCase();
         document.getElementById('edit-otp-digits').value = String(btn.dataset.digits || '6');
         document.getElementById('edit-otp-period').value = String(btn.dataset.period || '30');
+        if (deleteOtpForm) {
+            deleteOtpForm.dataset.scope = btn.dataset.deleteScope || 'tenant';
+        }
+        if (editOtpDeleteBtn) {
+            const canDelete = (btn.dataset.canDelete || '0') === '1';
+            editOtpDeleteBtn.classList.toggle('d-none', !canDelete);
+        }
         if (editOtpGroupInput) {
             editOtpGroupInput.value = btn.dataset.group || '';
         }
@@ -182,8 +202,111 @@ document.addEventListener('DOMContentLoaded', function () {
                 alert('Impossible de supprimer: identifiant OTP manquant.');
                 return;
             }
+
+            if (deleteOtpNameEl) {
+                const otpName = (editOtpNameInput?.value || '').trim();
+                deleteOtpNameEl.textContent = otpName !== '' ? otpName : 'ce code OTP';
+            }
+
+            const deleteScope = deleteOtpForm?.dataset?.scope || 'tenant';
+            if (deleteOtpScopeLabelEl) {
+                deleteOtpScopeLabelEl.textContent = deleteScope === 'personal' ? 'Code personnel' : 'Code de collection';
+            }
+            if (deleteOtpDescriptionEl) {
+                deleteOtpDescriptionEl.textContent = deleteScope === 'personal'
+                    ? 'Ce code personnel sera masque puis pourra etre restaure depuis l\'administration.'
+                    : 'Ce code de collection sera masque puis pourra etre restaure depuis l\'administration.';
+            }
+            if (deleteOtpIconWrapEl) {
+                deleteOtpIconWrapEl.style.background = deleteScope === 'personal'
+                    ? 'rgba(13, 110, 253, .12)'
+                    : 'rgba(220, 53, 69, .12)';
+                deleteOtpIconWrapEl.style.color = deleteScope === 'personal' ? '#0d6efd' : '#dc3545';
+            }
+            if (deleteOtpIconEl) {
+                deleteOtpIconEl.className = deleteScope === 'personal'
+                    ? 'bi bi-person-fill-lock'
+                    : 'bi bi-collection-fill';
+            }
+
+            if (deleteOtpConfirmModalEl) {
+                bootstrap.Modal.getOrCreateInstance(deleteOtpConfirmModalEl).show();
+                return;
+            }
+
             deleteOtpForm.requestSubmit();
         });
+    }
+
+    if (confirmDeleteOtpBtn && deleteOtpForm) {
+        confirmDeleteOtpBtn.addEventListener('click', function () {
+            deleteOtpForm.requestSubmit();
+        });
+    }
+
+    if (exportSelectedUriBtn) {
+        const updateSelectedExportButton = function () {
+            const checked = document.querySelectorAll('.otp-export-select:checked').length;
+            exportSelectedUriBtn.disabled = checked === 0;
+            if (clearAllOtpBtn) {
+                clearAllOtpBtn.disabled = checked === 0;
+            }
+            exportSelectedUriBtn.innerHTML = '<i class="bi bi-link-45deg me-1"></i>Exporter URI (' + checked + ')';
+            if (selectionActionBar) {
+                selectionActionBar.classList.toggle('d-none', checked === 0);
+            }
+            if (selectedOtpCountEl) {
+                selectedOtpCountEl.textContent = String(checked);
+            }
+        };
+
+        if (selectAllOtpBtn) {
+            selectAllOtpBtn.addEventListener('click', function () {
+                document.querySelectorAll('.otp-export-select').forEach(input => {
+                    const item = input.closest('.otp-item');
+                    if (item && item.style.display === 'none') {
+                        return;
+                    }
+                    input.checked = true;
+                });
+                updateSelectedExportButton();
+            });
+        }
+
+        if (clearAllOtpBtn) {
+            clearAllOtpBtn.addEventListener('click', function () {
+                document.querySelectorAll('.otp-export-select:checked').forEach(input => {
+                    input.checked = false;
+                });
+                updateSelectedExportButton();
+            });
+        }
+
+        document.addEventListener('change', function (event) {
+            if (event.target && event.target.classList.contains('otp-export-select')) {
+                updateSelectedExportButton();
+            }
+        });
+
+        exportSelectedUriBtn.addEventListener('click', function () {
+            const ids = [];
+            document.querySelectorAll('.otp-export-select:checked').forEach(input => {
+                const id = input.dataset?.otpId || '';
+                if (id && !ids.includes(id)) {
+                    ids.push(id);
+                }
+            });
+
+            if (ids.length === 0) {
+                alert('Veuillez sélectionner au moins un code OTP à exporter.');
+                updateSelectedExportButton();
+                return;
+            }
+
+            window.location.href = '/otp/export?ids=' + encodeURIComponent(ids.join(','));
+        });
+
+        updateSelectedExportButton();
     }
 
     // ── Edit User Modal ─────────────────────────────────────────
@@ -194,6 +317,22 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('edit-user-id').value = btn.dataset.id;
         document.getElementById('edit-user-name').value = btn.dataset.name || '';
         document.getElementById('edit-user-email').value = btn.dataset.email || '';
+
+        const pwdInput = document.getElementById('edit-user-password');
+        const pwdHelp = document.getElementById('edit-user-password-help');
+        const isFederated = (btn.dataset.isAdUser === '1') || (btn.dataset.isOidcUser === '1');
+        if (pwdInput) {
+            pwdInput.value = '';
+            pwdInput.disabled = isFederated;
+            pwdInput.placeholder = isFederated
+                ? 'Compte AD/OIDC: mot de passe géré par l\'identité externe'
+                : 'Laisser vide pour ne pas changer';
+        }
+        if (pwdHelp) {
+            pwdHelp.textContent = isFederated
+                ? 'Compte AD/OIDC: le mot de passe ne peut pas etre modifie ici.'
+                : 'Laisser vide pour ne pas changer.';
+        }
 
         const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
         modal.show();

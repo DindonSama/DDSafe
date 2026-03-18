@@ -4,6 +4,24 @@ return [
     'app_name'   => getenv('APP_NAME') ?: 'DDSafe',
     'app_secret' => getenv('APP_SECRET') ?: 'change-me-with-a-long-random-string-here',
     'personal_codes_enabled' => filter_var(getenv('PERSONAL_CODES_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN),
+    'session_timeout_seconds' => (int)(getenv('SESSION_TIMEOUT_SECONDS') ?: 900),
+    'log_max_entries' => (int)(getenv('LOG_MAX_ENTRIES') ?: 500),
+
+    'backup_scheduler' => [
+        'enabled' => filter_var(getenv('BACKUP_SCHEDULER_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN),
+        'schedules' => getenv('BACKUP_SCHEDULES') ?: 'daily,weekly,monthly',
+        'run_hour' => (int)(getenv('BACKUP_RUN_HOUR') ?: 2),
+        'weekly_day' => (int)(getenv('BACKUP_WEEKLY_DAY') ?: 7),
+        'monthly_day' => (int)(getenv('BACKUP_MONTHLY_DAY') ?: 1),
+        'export_mode' => getenv('BACKUP_EXPORT_MODE') ?: 'encrypted',
+        'include_secrets' => filter_var(getenv('BACKUP_INCLUDE_SECRETS') ?: 'false', FILTER_VALIDATE_BOOLEAN),
+        'passphrase' => getenv('BACKUP_PASSPHRASE') ?: '',
+        'output_dir' => getenv('BACKUP_OUTPUT_DIR') ?: '/backups',
+        'retention_daily' => (int)(getenv('BACKUP_RETENTION_DAILY') ?: 14),
+        'retention_weekly' => (int)(getenv('BACKUP_RETENTION_WEEKLY') ?: 8),
+        'retention_monthly' => (int)(getenv('BACKUP_RETENTION_MONTHLY') ?: 12),
+        'check_interval_seconds' => (int)(getenv('BACKUP_CHECK_INTERVAL_SECONDS') ?: 300),
+    ],
 
     'default_admin' => [
         'email'    => getenv('APP_ADMIN_EMAIL')    ?: 'admin@2fa-manager.local',

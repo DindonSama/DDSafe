@@ -3,6 +3,7 @@
 /** @var string $method */
 /** @var \App\Auth $auth */
 /** @var array $config */
+/** @var \App\SecurityLogger $securityLogger */
 
 if ($method === 'GET') {
     if ($auth->isAuthenticated()) {
@@ -14,6 +15,10 @@ if ($method === 'GET') {
     $oidcEnabled = $config['oidc']['enabled'] ?? false;
     $oidcButtonLabel = $config['oidc']['button_label'] ?? 'Se connecter via SSO';
     $rememberedIdentity = trim($_COOKIE['remember_login'] ?? '');
+    $rememberedLoginType = trim($_COOKIE['remember_login_type'] ?? 'local');
+    if ($rememberedLoginType !== 'ldap' || !$ldapEnabled) {
+        $rememberedLoginType = 'local';
+    }
     require __DIR__ . '/../templates/login.php';
     return;
 }
@@ -25,6 +30,7 @@ $password  = $_POST['password'] ?? '';
 $rememberIdentity = !empty($_POST['remember_identity']);
 
 if ($identity === '' || $password === '') {
+    $securityLogger->logAuthFailure($identity, $loginType, 'missing_fields');
     flash('danger', 'Veuillez remplir tous les champs.');
     header('Location: /login');
     exit;
@@ -47,7 +53,15 @@ if ($success) {
     $_SESSION['last_activity'] = time();
 
     if ($rememberIdentity) {
+        $rememberedType = ($loginType === 'ldap' && $config['ldap']['enabled']) ? 'ldap' : 'local';
         setcookie('remember_login', $identity, [
+            'expires'  => time() + (365 * 24 * 60 * 60),
+            'path'     => '/',
+            'secure'   => false,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        setcookie('remember_login_type', $rememberedType, [
             'expires'  => time() + (365 * 24 * 60 * 60),
             'path'     => '/',
             'secure'   => false,
@@ -62,11 +76,19 @@ if ($success) {
             'httponly' => true,
             'samesite' => 'Lax',
         ]);
+        setcookie('remember_login_type', '', [
+            'expires'  => time() - 3600,
+            'path'     => '/',
+            'secure'   => false,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
     }
 
     flash('success', 'Connexion réussie !');
     header('Location: /');
 } else {
+    $securityLogger->logAuthFailure($identity, $loginType, 'invalid_credentials');
     flash('danger', 'Identifiants incorrects.');
     header('Location: /login');
 }

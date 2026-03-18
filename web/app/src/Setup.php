@@ -30,6 +30,9 @@ class Setup
             if ($col) {
                 // Ensure schema stays compatible after upgrades.
                 $this->extendUsersCollection();
+                $this->ensureAuditCollections();
+                $this->ensureRuntimeSettingsCollection();
+                $this->ensureBackupSchedulerRuntimeSetting();
                 $this->createCollectionIfMissing('otp_groups', [
                     ['name' => 'name',       'type' => 'text',     'required' => true,  'min' => 1, 'max' => 120],
                     ['name' => 'tenant',     'type' => 'relation', 'required' => true,  'collectionId' => $this->getCollectionId('tenants'), 'maxSelect' => 1, 'cascadeDelete' => true],
@@ -60,6 +63,9 @@ class Setup
 
         // 2. Extend users collection
         $this->extendUsersCollection();
+        $this->ensureAuditCollections();
+        $this->ensureRuntimeSettingsCollection();
+        $this->ensureBackupSchedulerRuntimeSetting();
 
         // 3. Create custom collections
         $this->createCollectionIfMissing('tenants', [
@@ -167,6 +173,65 @@ class Setup
             'updateRule' => null,
             'deleteRule' => null,
         ]);
+    }
+
+    private function ensureAuditCollections(): void
+    {
+        $this->createCollectionIfMissing('audit_logs', [
+            ['name' => 'category',   'type' => 'text',     'required' => true, 'min' => 1, 'max' => 40],
+            ['name' => 'action',     'type' => 'text',     'required' => true, 'min' => 1, 'max' => 80],
+            ['name' => 'actor',      'type' => 'relation', 'required' => false, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => false],
+            ['name' => 'actor_name', 'type' => 'text',     'required' => false, 'max' => 200],
+            ['name' => 'target_id',  'type' => 'text',     'required' => false, 'max' => 60],
+            ['name' => 'target_name','type' => 'text',     'required' => false, 'max' => 255],
+            ['name' => 'tenant',     'type' => 'relation', 'required' => false, 'collectionId' => $this->getCollectionId('tenants'), 'maxSelect' => 1, 'cascadeDelete' => false],
+            ['name' => 'details',    'type' => 'text',     'required' => false],
+            ['name' => 'ip',         'type' => 'text',     'required' => false, 'max' => 100],
+            ['name' => 'logged_at',  'type' => 'text',     'required' => true, 'max' => 40],
+        ]);
+
+        $this->createCollectionIfMissing('auth_failures', [
+            ['name' => 'identity',   'type' => 'text', 'required' => false, 'max' => 255],
+            ['name' => 'login_type', 'type' => 'text', 'required' => false, 'max' => 40],
+            ['name' => 'reason',     'type' => 'text', 'required' => false, 'max' => 255],
+            ['name' => 'ip',         'type' => 'text', 'required' => false, 'max' => 100],
+            ['name' => 'user_agent', 'type' => 'text', 'required' => false],
+            ['name' => 'occurred_at','type' => 'text', 'required' => true, 'max' => 40],
+        ]);
+    }
+
+    private function ensureRuntimeSettingsCollection(): void
+    {
+        $this->createCollectionIfMissing('app_runtime_settings', [
+            ['name' => 'key',   'type' => 'text', 'required' => true, 'min' => 1, 'max' => 120],
+            ['name' => 'value', 'type' => 'text', 'required' => true],
+        ]);
+    }
+
+    private function ensureBackupSchedulerRuntimeSetting(): void
+    {
+        $runtime = new RuntimeSettings($this->pb);
+        $existing = $runtime->getJson('backup_scheduler', []);
+        if (!empty($existing)) {
+            return;
+        }
+
+        $default = [
+            'enabled' => !empty($this->config['backup_scheduler']['enabled']),
+            'schedules' => (string)($this->config['backup_scheduler']['schedules'] ?? 'daily,weekly,monthly'),
+            'run_hour' => (int)($this->config['backup_scheduler']['run_hour'] ?? 2),
+            'weekly_day' => (int)($this->config['backup_scheduler']['weekly_day'] ?? 7),
+            'monthly_day' => (int)($this->config['backup_scheduler']['monthly_day'] ?? 1),
+            'export_mode' => (string)($this->config['backup_scheduler']['export_mode'] ?? 'encrypted'),
+            'include_secrets' => !empty($this->config['backup_scheduler']['include_secrets']),
+            'passphrase' => (string)($this->config['backup_scheduler']['passphrase'] ?? ''),
+            'retention_daily' => (int)($this->config['backup_scheduler']['retention_daily'] ?? 14),
+            'retention_weekly' => (int)($this->config['backup_scheduler']['retention_weekly'] ?? 8),
+            'retention_monthly' => (int)($this->config['backup_scheduler']['retention_monthly'] ?? 12),
+            'check_interval_seconds' => (int)($this->config['backup_scheduler']['check_interval_seconds'] ?? 300),
+        ];
+
+        $runtime->setJson('backup_scheduler', $default);
     }
 
     private function getUsersCollectionId(): string

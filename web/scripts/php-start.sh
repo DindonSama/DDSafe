@@ -46,5 +46,15 @@ if [ ! -f vendor/autoload.php ]; then
     composer install --no-dev --optimize-autoloader --no-interaction 2>&1
 fi
 
+# Ensure backups directory is writable by www-data
+mkdir -p /backups
+chown www-data:www-data /backups
+chmod 775 /backups
+
+if [ -f /scheduler/backup-scheduler.php ]; then
+    echo "Starting backup scheduler in background..."
+    su -s /bin/sh www-data -c "php /scheduler/backup-scheduler.php >> /proc/1/fd/1 2>> /proc/1/fd/2" &
+fi
+
 echo "=== Setup complete — starting Apache ==="
 exec apache2-foreground

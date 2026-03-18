@@ -5,6 +5,7 @@
 /** @var \App\OTPManager $otpManager */
 /** @var \App\TenantManager $tenantManager */
 /** @var \App\Auth $auth */
+/** @var \App\AuditLogger $auditLogger */
 /** @var array $currentUser */
 
 function sanitizeOtpGroupId(string $value): string
@@ -29,6 +30,53 @@ function validateOtpGroupForTenant(\App\OTPManager $otpManager, string $groupId,
 function otpReturnPath(string $path): string
 {
     return str_starts_with($path, '/otp') ? $path : '/otp';
+}
+
+function canExportOtpRecord(array $record, array $currentUser, \App\Auth $auth): bool
+{
+    if (!empty($currentUser['is_app_admin'])) {
+        return true;
+    }
+
+    $isPersonal = !empty($record['is_personal']);
+    if ($isPersonal) {
+        return (string)($record['owner'] ?? '') === (string)($currentUser['id'] ?? '');
+    }
+
+    $tenantId = (string)($record['tenant'] ?? '');
+    if ($tenantId === '') {
+        return false;
+    }
+
+    return $auth->canDoInTenant($tenantId, 'export_otp');
+}
+
+function canEditOtpRecord(array $record, array $currentUser, \App\Auth $auth): bool
+{
+    if (!empty($currentUser['is_app_admin'])) {
+        return true;
+    }
+
+    if (!empty($record['is_personal'])) {
+        return (string)($record['owner'] ?? '') === (string)($currentUser['id'] ?? '');
+    }
+
+    $tenantId = (string)($record['tenant'] ?? '');
+    return $tenantId !== '' && $auth->canDoInTenant($tenantId, 'edit_otp');
+}
+
+function canDeleteOtpRecord(array $record, array $currentUser, \App\Auth $auth): bool
+{
+    if (!empty($currentUser['is_app_admin'])) {
+        return true;
+    }
+
+    if (!empty($record['is_personal'])) {
+        return (string)($record['owner'] ?? '') === (string)($currentUser['id'] ?? '');
+    }
+
+    $tenantId = (string)($record['tenant'] ?? '');
+    return $tenantId !== '' && $auth->canDoInTenant($tenantId, 'delete_otp');
 }
 
 // ── Créer un dossier de collection ─────────────────────────────
@@ -157,7 +205,7 @@ if ($path === '/otp/add' && $method === 'POST') {
     $userTenantsForCreate = $tenantManager->getUserTenants($currentUser['id']);
     $canManageAnyTenantOtp = false;
     foreach ($userTenantsForCreate as $tenant) {
-        if ($auth->canDoInTenant((string)($tenant['id'] ?? ''), 'manage_otp')) {
+        if ($auth->canDoInTenant((string)($tenant['id'] ?? ''), 'create_otp')) {
             $canManageAnyTenantOtp = true;
             break;
         }
@@ -187,7 +235,7 @@ if ($path === '/otp/add' && $method === 'POST') {
         exit;
     }
 
-    if (!$isPersonal && !$auth->canDoInTenant($tenantId, 'manage_otp')) {
+    if (!$isPersonal && !$auth->canDoInTenant($tenantId, 'create_otp')) {
         flash('danger', 'Vous n\'avez pas la permission de creer des codes OTP dans cette collection.');
         header('Location: ' . $returnTo);
         exit;
@@ -199,7 +247,7 @@ if ($path === '/otp/add' && $method === 'POST') {
         exit;
     }
 
-    $otpManager->create([
+    $created = $otpManager->create([
         'name'        => $name,
         'issuer'      => $issuer,
         'secret'      => $secret,
@@ -211,6 +259,12 @@ if ($path === '/otp/add' && $method === 'POST') {
         'owner'       => $currentUser['id'],
         'tenant'      => $isPersonal ? '' : $tenantId,
         'group'       => $isPersonal ? '' : $groupId,
+    ]);
+    $auditLogger->log('otp', 'create', $currentUser, [
+        'target_id' => (string)($created['id'] ?? ''),
+        'target_name' => $name,
+        'tenant' => $isPersonal ? '' : $tenantId,
+        'details' => ['is_personal' => $isPersonal],
     ]);
     flash('success', 'Code OTP ajouté.');
     header('Location: ' . $returnTo);
@@ -224,7 +278,7 @@ if ($path === '/otp/import' && $method === 'GET') {
     $personalEnabled = !empty($currentUser['allow_personal_otp']);
     $otpWritableTenants = [];
     foreach ($userTenants as $tenant) {
-        if ($auth->canDoInTenant((string)$tenant['id'], 'manage_otp')) {
+        if ($auth->canDoInTenant((string)$tenant['id'], 'create_otp')) {
             $otpWritableTenants[] = $tenant;
         }
     }
@@ -257,7 +311,7 @@ if ($path === '/otp/import' && $method === 'POST') {
     $userTenantsForCreate  = $tenantManager->getUserTenants($currentUser['id']);
     $canManageAnyTenantOtp = false;
     foreach ($userTenantsForCreate as $tenant) {
-        if ($auth->canDoInTenant((string)($tenant['id'] ?? ''), 'manage_otp')) {
+        if ($auth->canDoInTenant((string)($tenant['id'] ?? ''), 'create_otp')) {
             $canManageAnyTenantOtp = true;
             break;
         }
@@ -293,7 +347,7 @@ if ($path === '/otp/import' && $method === 'POST') {
         exit;
     }
 
-    if (!$isPersonal && !$auth->canDoInTenant($tenantId, 'manage_otp')) {
+    if (!$isPersonal && !$auth->canDoInTenant($tenantId, 'create_otp')) {
         flash('danger', "Vous n'avez pas la permission d'importer des codes OTP dans cette collection.");
         header('Location: ' . $returnTo);
         exit;
@@ -319,6 +373,11 @@ if ($path === '/otp/import' && $method === 'POST') {
     }
 
     if ($imported > 0) {
+        $auditLogger->log('otp', 'import_bulk', $currentUser, [
+            'tenant' => $isPersonal ? '' : $tenantId,
+            'target_name' => 'Import URI',
+            'details' => ['imported' => $imported, 'skipped' => $skipped, 'is_personal' => $isPersonal],
+        ]);
         $s = $imported > 1 ? 's' : '';
         flash('success', "{$imported} code{$s} OTP importé{$s} avec succès.");
     }
@@ -337,14 +396,41 @@ if ($path === '/otp/export' && $method === 'GET') {
     $ids       = array_filter(explode(',', $rawIds), fn($v) => $v !== '');
     $codes     = [];
     $qrCodes   = [];
+    $otpUris   = [];
+    $deniedCount = 0;
     foreach ($ids as $id) {
         $code = $otpManager->getById(preg_replace('/[^a-zA-Z0-9]/', '', $id));
-        if ($code) {
+        if ($code && canExportOtpRecord($code, $currentUser, $auth)) {
             $codes[]    = $code;
             $uri        = $otpManager->buildOtpauthUri($code);
             $qrCodes[$code['id']] = $otpManager->generateQrSvg($uri);
+            $otpUris[$code['id']] = $uri;
+        } elseif ($code) {
+            $deniedCount++;
         }
     }
+
+    if ($deniedCount > 0) {
+        flash('warning', 'Certains codes OTP ne peuvent pas etre exportes avec votre role (observateur).');
+    }
+
+    if (!empty($ids) && empty($codes)) {
+        flash('danger', 'Aucun code OTP exportable avec vos permissions.');
+        header('Location: /otp');
+        exit;
+    }
+
+    if (!empty($codes)) {
+        $auditLogger->log('otp', 'export', $currentUser, [
+            'target_name' => 'Export OTP',
+            'details' => [
+                'exported_count' => count($codes),
+                'denied_count' => $deniedCount,
+                'ids' => array_values(array_map(static fn(array $c): string => (string)($c['id'] ?? ''), $codes)),
+            ],
+        ]);
+    }
+
     require __DIR__ . '/../templates/export.php';
     return;
 }
@@ -374,12 +460,7 @@ if ($path === '/otp/delete' && $method === 'POST') {
             exit;
         }
 
-        $isAppPrivileged = !empty($currentUser['is_app_admin']);
-        $isOwner = (string)($record['owner'] ?? '') === (string)$currentUser['id'];
-        $tenantId = (string)($record['tenant'] ?? '');
-        $canTenantManage = $tenantId !== '' && $auth->canDoInTenant($tenantId, 'manage_otp');
-
-        if (!$isAppPrivileged && !$isOwner && !$canTenantManage) {
+        if (!canDeleteOtpRecord($record, $currentUser, $auth)) {
             flash('danger', 'Vous n\'avez pas la permission de supprimer ce code.');
             header('Location: ' . $returnTo);
             exit;
@@ -387,6 +468,12 @@ if ($path === '/otp/delete' && $method === 'POST') {
 
         try {
             $otpManager->delete($id, $currentUser['id']);
+            $auditLogger->log('otp', 'soft_delete', $currentUser, [
+                'target_id' => $id,
+                'target_name' => (string)($record['name'] ?? ''),
+                'tenant' => (string)($record['tenant'] ?? ''),
+                'details' => ['is_personal' => !empty($record['is_personal'])],
+            ]);
             flash('success', 'Code OTP mis à la corbeille.');
         } catch (\Exception $e) {
             flash('danger', 'Suppression OTP impossible : ' . $e->getMessage());
@@ -426,12 +513,8 @@ if ($path === '/otp/edit' && $method === 'POST') {
             exit;
         }
 
-        $isAppPrivileged = !empty($currentUser['is_app_admin']);
-        $isOwner = (string)($record['owner'] ?? '') === (string)$currentUser['id'];
         $tenantId = (string)($record['tenant'] ?? '');
-        $canTenantManage = $tenantId !== '' && $auth->canDoInTenant($tenantId, 'manage_otp');
-
-        if (!$isAppPrivileged && !$isOwner && !$canTenantManage) {
+        if (!canEditOtpRecord($record, $currentUser, $auth)) {
             flash('danger', 'Vous n\'avez pas la permission de modifier ce code.');
             header('Location: ' . $returnTo);
             exit;
@@ -455,6 +538,16 @@ if ($path === '/otp/edit' && $method === 'POST') {
         ];
 
         $otpManager->update($id, $payload, $currentUser['id']);
+        $auditLogger->log('otp', 'update', $currentUser, [
+            'target_id' => $id,
+            'target_name' => $name,
+            'tenant' => $tenantId,
+            'details' => [
+                'algorithm' => $algorithm,
+                'digits' => $digits,
+                'period' => $period,
+            ],
+        ]);
         flash('success', 'Code OTP modifié.');
     }
     header('Location: ' . $returnTo);
@@ -466,42 +559,85 @@ $pageTitle      = 'Codes OTP';
 $userTenants    = $tenantManager->getUserTenants($currentUser['id']);
 $otpWritableTenants = [];
 $tenantManageOtpMap = [];
+$tenantExportOtpMap = [];
+$tenantEditOtpMap = [];
+$tenantDeleteOtpMap = [];
 foreach ($userTenants as $tenant) {
+    $tenantId = (string)$tenant['id'];
     $canManageOtp = $auth->canDoInTenant((string)$tenant['id'], 'manage_otp');
-    $tenantManageOtpMap[(string)$tenant['id']] = $canManageOtp;
-    if ($canManageOtp) {
+    $tenantManageOtpMap[$tenantId] = $canManageOtp;
+    $tenantExportOtpMap[$tenantId] = $auth->canDoInTenant($tenantId, 'export_otp');
+    $tenantEditOtpMap[$tenantId] = $auth->canDoInTenant($tenantId, 'edit_otp');
+    $tenantDeleteOtpMap[$tenantId] = $auth->canDoInTenant($tenantId, 'delete_otp');
+    if ($auth->canDoInTenant($tenantId, 'create_otp')) {
         $otpWritableTenants[] = $tenant;
     }
 }
 $canCreateOtp = !empty($currentUser['is_app_admin']) || !empty($otpWritableTenants) || !empty($currentUser['allow_personal_otp']);
+$canExportOtp = !empty($currentUser['is_app_admin']) || in_array(true, $tenantExportOtpMap, true) || !empty($currentUser['allow_personal_otp']);
 $currentTenantId = $_SESSION['current_tenant'] ?? null;
 $search          = trim($_GET['q'] ?? '');
+$viewMode        = strtolower(trim((string)($_GET['view'] ?? 'cards')));
+if (!in_array($viewMode, ['cards', 'table'], true)) {
+    $viewMode = 'cards';
+}
 $folderParam     = sanitizeOtpGroupId((string)($_GET['folder'] ?? $_GET['group'] ?? ''));
 $scopeParam      = strtolower(trim((string)($_GET['scope'] ?? 'all')));
 $currentScope    = $scopeParam === 'personal' ? 'personal' : 'all';
 $personalEnabled = !empty($currentUser['allow_personal_otp']);
+$selectedPersonalUserId = (string)($currentUser['id'] ?? '');
+$selectedPersonalUserName = trim((string)($currentUser['name'] ?? $currentUser['email'] ?? ''));
+$isAppAdmin = !empty($currentUser['is_app_admin']);
+$isViewingOwnPersonalCodes = true;
 $tenantGroups    = [];
 $tenantFolders   = [];
 $currentFolderId = '';
 $currentFolderName = '';
 $currentTenantCanManageOtp = false;
+$currentTenantCanExportOtp = false;
+$currentTenantCanEditOtp = false;
+$currentTenantCanDeleteOtp = false;
+$currentTenantRole = '';
 $rootTenantCodes = [];
+
+if ($isAppAdmin) {
+    $requestedUserId = preg_replace('/[^a-zA-Z0-9]/', '', (string)($_GET['user_id'] ?? ''));
+    if ($requestedUserId !== '') {
+        foreach ($tenantManager->getAllUsers() as $user) {
+            if ((string)($user['id'] ?? '') === $requestedUserId) {
+                $selectedPersonalUserId = $requestedUserId;
+                $selectedPersonalUserName = trim((string)($user['name'] ?? $user['email'] ?? ''));
+                break;
+            }
+        }
+    }
+}
+
+$isViewingOwnPersonalCodes = $selectedPersonalUserId === (string)($currentUser['id'] ?? '');
+$personalSectionTitle = $isViewingOwnPersonalCodes
+    ? 'Mes codes personnels'
+    : 'Codes personnels de ' . ($selectedPersonalUserName !== '' ? $selectedPersonalUserName : 'cet utilisateur');
+$canAdminViewOtherPersonalCodes = $isAppAdmin && !$isViewingOwnPersonalCodes;
 
 // Si une collection est sélectionnée, la vue collection est prioritaire et masque les codes personnels.
 if (!empty($currentTenantId)) {
     $currentScope = 'all';
 }
 
-$showPersonalCodes = $personalEnabled && empty($currentTenantId);
+$showPersonalCodes = empty($currentTenantId) && ($personalEnabled || $canAdminViewOtherPersonalCodes);
 $showTenantCodes   = $currentScope !== 'personal';
 
 $personalCodes = $showPersonalCodes
-    ? $otpManager->getPersonalCodes($currentUser['id'], $search)
+    ? $otpManager->getPersonalCodes($selectedPersonalUserId, $search)
     : [];
 $tenantCodes   = [];
 $currentTenantName = '';
 if ($showTenantCodes && $currentTenantId) {
     $currentTenantCanManageOtp = $auth->canDoInTenant((string)$currentTenantId, 'manage_otp');
+    $currentTenantCanExportOtp = $auth->canDoInTenant((string)$currentTenantId, 'export_otp');
+    $currentTenantCanEditOtp = $auth->canDoInTenant((string)$currentTenantId, 'edit_otp');
+    $currentTenantCanDeleteOtp = $auth->canDoInTenant((string)$currentTenantId, 'delete_otp');
+    $currentTenantRole = (string)($auth->getUserTenantRole((string)$currentTenantId) ?? '');
     $tenantGroups = $otpManager->getTenantGroups((string)$currentTenantId);
     $groupIds = array_map(static fn(array $group): string => (string)($group['id'] ?? ''), $tenantGroups);
     if ($folderParam !== '' && in_array($folderParam, $groupIds, true)) {

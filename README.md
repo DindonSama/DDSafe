@@ -1,4 +1,4 @@
-# 2FA Manager
+azr
 
 Application web de gestion de codes OTP (TOTP/HOTP) avec support multi-collection et Active Directory.
 
@@ -14,14 +14,17 @@ Application web de gestion de codes OTP (TOTP/HOTP) avec support multi-collectio
 - **Rôles hiérarchiques** — Propriétaire, Administrateur, Membre, Observateur par collection
 - **Chiffrement** — Les secrets OTP sont chiffrés au repos (libsodium)
 - **Corbeille** — Les codes supprimés sont conservés et restaurables par un administrateur
+- **Journaux de sécurité** — Journal d'audit (actions OTP) et journal des échecs d'authentification
+- **Santé applicative** — Vue admin avec statut PocketBase, LDAP/OIDC, nombre de codes et derniers échecs d'auth
+- **Sauvegarde chiffrée admin** — Export chiffré de configuration + métadonnées, avec option d'exclusion des secrets
 - **Thème sombre** — Interface entièrement adaptée au travail en conditions sombres
 
 ## Architecture
 
-| Service      | Image Docker                          | Rôle                       |
-|--------------|---------------------------------------|----------------------------|
-| `pb_2fa`     | `ghcr.io/muchobien/pocketbase:latest` | Base de données / API REST |
-| `php`        | `php:8.2-apache`                      | Application web PHP        |
+| Service      | Image Docker                          | Rôle                                           |
+|--------------|---------------------------------------|------------------------------------------------|
+| `pb_2fa`     | `ghcr.io/muchobien/pocketbase:latest` | Base de données / API REST                     |
+| `php`        | `php:8.2-apache`                      | Application web PHP + routine de backup planifiée |
 
 > Aucun Dockerfile n'est utilisé — uniquement des images Docker officielles.
 
@@ -43,9 +46,16 @@ APP_SECRET=une-longue-chaine-aleatoire-ici
 PB_ADMIN_EMAIL=admin@admin.com
 PB_ADMIN_PASSWORD=Admin12345!
 EXTENSION_APP_URL=http://localhost:8080
+SESSION_TIMEOUT_SECONDS=900
+LOG_MAX_ENTRIES=500
 ```
 
 > `APP_SECRET` sert à dériver la clé de chiffrement des secrets OTP. **Ne le modifiez pas après la première utilisation.**
+
+`SESSION_TIMEOUT_SECONDS` règle l'expiration de session (défaut 900s).
+
+`LOG_MAX_ENTRIES` règle la rétention maximale des journaux (`audit_logs` + `auth_failures`).
+Quand la limite est atteinte (par défaut 500), les entrées les plus anciennes sont purgées automatiquement.
 
 ### 2. Lancer
 
@@ -217,6 +227,124 @@ rm -rf web/composer/
 - Validation et échappement systématiques des entrées
 - Communication PocketBase ↔ PHP via réseau Docker isolé (non exposé publiquement)
 - Token admin PocketBase géré côté serveur uniquement
+- Expiration de session configurable via `SESSION_TIMEOUT_SECONDS`
+- Journalisation des échecs d'authentification (visible dans l'administration)
+- Journal d'audit des actions OTP (création, modification, export, suppression, restauration)
+
+---
+
+## Santé applicative
+
+Page admin disponible via `/admin/health` :
+
+- Statut PocketBase
+- Statut LDAP (activé/configuré/connectivité)
+- Statut OIDC (activé/configuré)
+- Nombre de codes OTP actifs
+- Derniers échecs d'authentification
+
+---
+
+## Sauvegarde / Export admin
+
+Page admin disponible via `/admin/backup` :
+
+- Export chiffré AES-256-CBC (enveloppe JSON)
+- Export non chiffré (JSON) possible
+- Option pour inclure ou exclure les secrets
+- Vérification d'un backup (structure + compte des éléments)
+- Import best-effort d'un backup (collections/groupes/OTP)
+
+Recommandation : garder les secrets exclus pour les exports de routine.
+
+Note import :
+
+- Les OTP sans `secret_enc` sont ignorés à l'import.
+- L'import se fait en correspondance best-effort (tenant/groupe par nom, propriétaire par email).
+- En mode overwrite, les OTP existants (même nom/issuer/collection) peuvent être mis à jour.
+
+---
+
+## Routine backup planifiee (daily/weekly/monthly)
+
+La routine de backup tourne dans le conteneur `php` et genere automatiquement des sauvegardes dans le dossier `./backups`.
+
+La configuration est modifiable depuis l'interface admin **Sante applicative** (`/admin/health`), sans redemarrage du conteneur.
+
+### Activer la routine
+
+Dans le `.env` :
+
+```env
+BACKUP_SCHEDULER_ENABLED=true
+BACKUP_SCHEDULES=daily,weekly,monthly
+BACKUP_RUN_HOUR=2
+BACKUP_WEEKLY_DAY=7
+BACKUP_MONTHLY_DAY=1
+BACKUP_EXPORT_MODE=encrypted
+BACKUP_INCLUDE_SECRETS=false
+BACKUP_PASSPHRASE=une-passphrase-longue-et-unique
+BACKUP_RETENTION_DAILY=14
+BACKUP_RETENTION_WEEKLY=8
+BACKUP_RETENTION_MONTHLY=12
+BACKUP_CHECK_INTERVAL_SECONDS=300
+TZ=Europe/Paris
+```
+
+Puis relancer :
+
+```bash
+docker compose up -d
+```
+
+### Parametres principaux
+
+- `BACKUP_SCHEDULES` : periodes actives (`daily`, `weekly`, `monthly`).
+- `BACKUP_RUN_HOUR` : heure d'execution (0-23).
+- `BACKUP_WEEKLY_DAY` : jour ISO de la semaine (1=lundi ... 7=dimanche).
+- `BACKUP_MONTHLY_DAY` : jour du mois (si invalide pour le mois, dernier jour du mois).
+- `BACKUP_EXPORT_MODE` : `encrypted` ou `plain`.
+- `BACKUP_INCLUDE_SECRETS` : inclure les secrets OTP (`true`/`false`).
+- `BACKUP_RETENTION_*` : nombre de fichiers conserves par periode.
+- `BACKUP_CHECK_INTERVAL_SECONDS` : frequence de verification du scheduler.
+
+### Nommage et retention
+
+- Les fichiers sont nommes avec le type de periode (`daily`, `weekly`, `monthly`) et un timestamp UTC.
+- Le scheduler conserve uniquement les `N` derniers fichiers par periode selon la retention configuree.
+- En mode `encrypted`, les fichiers utilisent l'extension `.enc.json`; en mode `plain`, `.json`.
+
+### Recommandations
+
+- Utiliser `BACKUP_EXPORT_MODE=encrypted` en production.
+- Definir une passphrase forte dans `BACKUP_PASSPHRASE`.
+- Garder `BACKUP_INCLUDE_SECRETS=false` pour les exports de routine si vous n'avez pas besoin de restaurer les secrets OTP.
+- Sauvegarder regulierement le dossier `./backups` vers un stockage externe.
+
+---
+
+## Tests automatiques
+
+Suite de tests CLI incluse dans `web/app/tests` pour couvrir :
+
+- Permissions (export/édition/suppression OTP)
+- Login local/LDAP
+- Suppression/restauration OTP
+
+Exécution :
+
+```bash
+php web/app/tests/run.php
+```
+
+---
+
+## Administration utilisateurs AD/OIDC
+
+Pour les comptes fédérés (`AD` ou `OIDC`) :
+
+- un administrateur ne peut pas modifier le mot de passe depuis l'application ;
+- le mot de passe reste géré par la source d'identité externe.
 
 ---
 

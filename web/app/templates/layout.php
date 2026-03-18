@@ -59,6 +59,18 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
         <a href="/admin/trash" class="nav-link <?= $currentPath === '/admin/trash' ? 'active' : '' ?>">
             <i class="bi bi-trash3"></i> Corbeille
         </a>
+        <a href="/admin/health" class="nav-link <?= $currentPath === '/admin/health' ? 'active' : '' ?>">
+            <i class="bi bi-heart-pulse"></i> Santé
+        </a>
+        <a href="/admin/backup" class="nav-link <?= $currentPath === '/admin/backup' ? 'active' : '' ?>">
+            <i class="bi bi-cloud-arrow-down"></i> Sauvegardes
+        </a>
+        <a href="/admin/audit" class="nav-link <?= $currentPath === '/admin/audit' ? 'active' : '' ?>">
+            <i class="bi bi-journal-text"></i> Journal d'audit
+        </a>
+        <a href="/admin/auth-failures" class="nav-link <?= $currentPath === '/admin/auth-failures' ? 'active' : '' ?>">
+            <i class="bi bi-shield-exclamation"></i> Echecs d'auth
+        </a>
         <?php endif; ?>
     </nav>
 
