@@ -14,6 +14,7 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? '') ?> — <?= htmlspecialchars($appName) ?></title>
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/assets/css/app.css" rel="stylesheet">
@@ -31,7 +32,9 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 <!-- Sidebar -->
 <aside class="app-sidebar" id="sidebar" aria-label="Navigation latérale">
     <a href="/" class="sidebar-brand" aria-label="Aller au tableau de bord">
-        <div class="brand-icon"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i></div>
+        <div class="brand-icon">
+            <img src="/assets/favicon.svg" alt="<?= htmlspecialchars($appName) ?>" width="22" height="22">
+        </div>
         <span class="brand-text"><?= htmlspecialchars($appName) ?></span>
     </a>
 

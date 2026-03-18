@@ -3,8 +3,18 @@
   "name": "DDSafe OTP Viewer (Read Only)",
   "description": "Read-only viewer for OTP codes displayed in DDSafe.",
   "version": "0.1.1",
+  "icons": {
+    "16": "icon.svg",
+    "32": "icon.svg",
+    "48": "icon.svg",
+    "128": "icon.svg"
+  },
   "action": {
     "default_title": "DDSafe OTP Viewer",
+    "default_icon": {
+      "16": "icon.svg",
+      "32": "icon.svg"
+    },
     "default_popup": "popup.html"
   },
   "options_page": "options.html",
