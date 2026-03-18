@@ -58,6 +58,11 @@ if ($path === '/admin/users/toggle-admin' && $method === 'POST') {
     $uid     = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['user_id'] ?? '');
     $isAdmin = !empty($_POST['is_app_admin']);
     if ($uid) {
+        if ($uid === (string)($currentUser['id'] ?? '')) {
+            flash('danger', 'Vous ne pouvez pas modifier votre propre role global.');
+            header('Location: /admin/users');
+            exit;
+        }
         $pb->updateRecord('users', $uid, ['is_app_admin' => $isAdmin]);
         flash('success', 'Statut administrateur mis à jour.');
     }
@@ -160,6 +165,12 @@ if ($path === '/admin/users/tenants/update' && $method === 'POST') {
         $membership = $tenantManager->getMembershipById($mid);
         $currentRole = (string)($membership['role'] ?? '');
         $uid = (string)($membership['user'] ?? '');
+
+        if ($uid === (string)($currentUser['id'] ?? '')) {
+            flash('danger', 'Vous ne pouvez pas modifier votre propre role de collection.');
+            header('Location: /admin/users?open_tenant_user=' . urlencode($uid));
+            exit;
+        }
 
         if ($currentRole === 'owner') {
             flash('danger', 'Le rôle propriétaire ne peut pas être modifié ici.');

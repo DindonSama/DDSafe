@@ -56,15 +56,21 @@ ob_start();
                             </td>
                             <td>
                                 <div class="d-flex gap-1">
-                                    <form method="POST" action="/admin/users/toggle-admin" class="d-inline">
-                                        <?= csrfField() ?>
-                                        <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
-                                        <input type="hidden" name="is_app_admin"
-                                               value="<?= empty($u['is_app_admin']) ? '1' : '0' ?>">
-                                        <button type="submit" class="btn btn-sm <?= !empty($u['is_app_admin']) ? 'btn-warning' : 'btn-outline-secondary' ?>">
+                                    <?php if (($u['id'] ?? '') === ($currentUser['id'] ?? '')): ?>
+                                        <button type="button" class="btn btn-sm <?= !empty($u['is_app_admin']) ? 'btn-warning' : 'btn-outline-secondary' ?>" disabled title="Vous ne pouvez pas modifier votre propre rôle global.">
                                             <?= !empty($u['is_app_admin']) ? '<i class="bi bi-star-fill"></i> Admin' : '<i class="bi bi-star"></i>' ?>
                                         </button>
-                                    </form>
+                                    <?php else: ?>
+                                        <form method="POST" action="/admin/users/toggle-admin" class="d-inline">
+                                            <?= csrfField() ?>
+                                            <input type="hidden" name="user_id" value="<?= htmlspecialchars($u['id']) ?>">
+                                            <input type="hidden" name="is_app_admin"
+                                                   value="<?= empty($u['is_app_admin']) ? '1' : '0' ?>">
+                                            <button type="submit" class="btn btn-sm <?= !empty($u['is_app_admin']) ? 'btn-warning' : 'btn-outline-secondary' ?>">
+                                                <?= !empty($u['is_app_admin']) ? '<i class="bi bi-star-fill"></i> Admin' : '<i class="bi bi-star"></i>' ?>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                             <td>
@@ -204,12 +210,15 @@ ob_start();
                                         $tenantName = $m['expand']['tenant']['name'] ?? 'Collection';
                                         $mid = (string)($m['id'] ?? '');
                                         $mrole = (string)($m['role'] ?? 'viewer');
+                                        $isSelfMembershipTarget = (string)($m['user'] ?? '') === (string)($currentUser['id'] ?? '');
                                     ?>
                                         <tr>
                                             <td><?= htmlspecialchars($tenantName) ?></td>
                                             <td>
                                                 <?php if ($mrole === 'owner'): ?>
                                                     <span class="badge bg-danger">owner</span>
+                                                <?php elseif ($isSelfMembershipTarget): ?>
+                                                    <span class="badge bg-secondary"><?= htmlspecialchars($mrole) ?></span>
                                                 <?php else: ?>
                                                     <form method="POST" action="/admin/users/tenants/update" class="d-inline">
                                                         <?= csrfField() ?>
@@ -225,6 +234,8 @@ ob_start();
                                             <td>
                                                 <?php if ($mrole === 'owner'): ?>
                                                     <span class="text-muted small">Verrouillé</span>
+                                                <?php elseif ($isSelfMembershipTarget): ?>
+                                                    <span class="text-muted small">Votre rôle</span>
                                                 <?php else: ?>
                                                     <form method="POST" action="/admin/users/tenants/remove" class="d-inline" onsubmit="return confirm('Retirer cet utilisateur de cette collection ?')">
                                                         <?= csrfField() ?>
