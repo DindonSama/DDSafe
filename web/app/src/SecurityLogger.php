@@ -8,11 +8,13 @@ class SecurityLogger
 {
     private PocketBaseClient $pb;
     private int $maxEntries;
+    private int $retentionDays;
 
-    public function __construct(PocketBaseClient $pb, int $maxEntries = 500)
+    public function __construct(PocketBaseClient $pb, int $maxEntries = 500, int $retentionDays = 30)
     {
         $this->pb = $pb;
         $this->maxEntries = max(50, $maxEntries);
+        $this->retentionDays = max(1, $retentionDays);
     }
 
     public function logAuthFailure(string $identity, string $loginType, string $reason): void
@@ -26,6 +28,7 @@ class SecurityLogger
                 'user_agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
                 'occurred_at' => date('c'),
             ]);
+            $this->trimByAge();
             $this->trimOverflow();
         } catch (\Exception) {
             // Security logging must not block authentication flow.
@@ -81,6 +84,36 @@ class SecurityLogger
                         if ($overflow <= 0) {
                             break;
                         }
+                    }
+                }
+            }
+        } catch (\Exception) {
+            // Silent by design.
+        }
+    }
+
+    private function trimByAge(): void
+    {
+        try {
+            $threshold = gmdate('c', time() - ($this->retentionDays * 86400));
+
+            while (true) {
+                $old = $this->pb->listRecords('auth_failures', [
+                    'filter' => 'occurred_at < "' . $threshold . '"',
+                    'sort' => 'occurred_at',
+                    'perPage' => 100,
+                    'page' => 1,
+                ]);
+
+                $items = $old['items'] ?? [];
+                if (empty($items)) {
+                    break;
+                }
+
+                foreach ($items as $item) {
+                    $id = (string)($item['id'] ?? '');
+                    if ($id !== '') {
+                        $this->pb->deleteRecord('auth_failures', $id);
                     }
                 }
             }

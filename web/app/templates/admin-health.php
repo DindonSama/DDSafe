@@ -8,16 +8,10 @@
 /** @var bool $oidcEnabled */
 /** @var bool $oidcConfigured */
 /** @var int $otpCount */
-/** @var int $backupCount */
-/** @var array $backupDisk */
-/** @var array $schedulerConfigHealth */
-/** @var array $schedulerStateHealth */
-/** @var array $nextRunBySchedule */
+/** @var int $pocketbaseBackupCount */
 /** @var array $authFailureWindow */
 /** @var array $sessionHealth */
-/** @var array $backupIntegrity */
 /** @var array $healthEvents */
-/** @var array $authFailures */
 ob_start();
 ?>
 
@@ -75,44 +69,9 @@ ob_start();
     <div class="col-md-3">
         <div class="card h-100">
             <div class="card-body">
-                <div class="text-muted small mb-1">Sauvegardes stockées</div>
-                <div class="fw-semibold"><?= (int)$backupCount ?></div>
-                <small><a href="/admin/backup" class="text-muted">Gérer →</a></small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card h-100 <?= !empty($backupDisk['alert']) ? 'border-warning' : '' ?>">
-            <div class="card-body">
-                <div class="text-muted small mb-1">Espace backup disponible</div>
-                <div class="fw-semibold"><?= (int)($backupDisk['free_pct'] ?? 0) ?>%</div>
-                <small class="text-muted">
-                    <?= number_format(((int)($backupDisk['free'] ?? 0)) / (1024 * 1024 * 1024), 2) ?> Go libres /
-                    <?= number_format(((int)($backupDisk['total'] ?? 0)) / (1024 * 1024 * 1024), 2) ?> Go
-                </small>
-                <?php if (!empty($backupDisk['alert'])): ?>
-                    <div class="small text-warning mt-1"><i class="bi bi-exclamation-triangle me-1"></i>Seuil bas (&lt; 15%)</div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="text-muted small mb-1">Intégrité dernier backup</div>
-                <?php
-                $integrityClass = 'text-muted';
-                if (($backupIntegrity['status'] ?? '') === 'ok') {
-                    $integrityClass = 'text-success';
-                } elseif (($backupIntegrity['status'] ?? '') === 'warning') {
-                    $integrityClass = 'text-warning';
-                } elseif (($backupIntegrity['status'] ?? '') === 'error') {
-                    $integrityClass = 'text-danger';
-                }
-                ?>
-                <div class="fw-semibold <?= $integrityClass ?>"><?= htmlspecialchars((string)($backupIntegrity['status'] ?? 'unknown')) ?></div>
-                <small class="text-muted d-block"><?= htmlspecialchars((string)($backupIntegrity['file'] ?? '-')) ?></small>
-                <small class="text-muted d-block"><?= htmlspecialchars((string)($backupIntegrity['message'] ?? '')) ?></small>
+                <div class="text-muted small mb-1">Sauvegardes PocketBase</div>
+                <div class="fw-semibold"><?= (int)$pocketbaseBackupCount ?></div>
+                <small><a href="/admin/backup" class="text-muted">Gérer via API PocketBase →</a></small>
             </div>
         </div>
     </div>
@@ -137,53 +96,6 @@ ob_start();
                 <div class="d-flex justify-content-between"><span>Fichiers session</span><strong><?= (int)($sessionHealth['files_total'] ?? 0) ?></strong></div>
                 <div class="d-flex justify-content-between"><span>Expirations (24 h)</span><strong><?= (int)($sessionHealth['expired_24h'] ?? 0) ?></strong></div>
                 <small class="text-muted">Timeout configuré: <?= (int)($sessionHealth['timeout_seconds'] ?? 0) ?>s</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card h-100">
-            <div class="card-header"><strong>Jobs scheduler</strong></div>
-            <div class="card-body">
-                <?php
-                $schedulerEnabledGlobal = !empty($schedulerConfigHealth['enabled']);
-                $enabledSchedulesHealth = array_values(array_filter(array_map(
-                    'trim',
-                    explode(',', (string)($schedulerConfigHealth['schedules'] ?? 'daily,weekly,monthly'))
-                )));
-                ?>
-                <?php foreach (['daily', 'weekly', 'monthly'] as $sch): ?>
-                    <?php
-                    $state = $schedulerStateHealth[$sch] ?? [];
-                    if (!$schedulerEnabledGlobal || !in_array($sch, $enabledSchedulesHealth, true)) {
-                        $status = 'disabled';
-                    } elseif (!empty($state['last_status'])) {
-                        $status = (string)$state['last_status'];
-                    } elseif (!empty($state['last_run_at'])) {
-                        // Compat: old state file may not include last_status.
-                        $status = 'success';
-                    } else {
-                        $status = 'pending';
-                    }
-
-                    $statusClass = 'text-muted';
-                    if ($status === 'success') {
-                        $statusClass = 'text-success';
-                    } elseif ($status === 'error') {
-                        $statusClass = 'text-danger';
-                    } elseif ($status === 'pending') {
-                        $statusClass = 'text-warning';
-                    }
-                    ?>
-                    <div class="mb-2 pb-2 border-bottom">
-                        <div class="d-flex justify-content-between">
-                            <strong><?= htmlspecialchars(ucfirst($sch)) ?></strong>
-                            <span class="<?= $statusClass ?>"><?= htmlspecialchars($status) ?></span>
-                        </div>
-                        <small class="text-muted d-block">Dernier run: <?= htmlspecialchars(substr((string)($state['last_run_at'] ?? '-'), 0, 19)) ?></small>
-                        <small class="text-muted d-block">Prochain run: <?= htmlspecialchars(substr((string)($nextRunBySchedule[$sch] ?? '-'), 0, 19)) ?></small>
-                    </div>
-                <?php endforeach; ?>
-                <a href="/admin/backup" class="small">Configurer le scheduler →</a>
             </div>
         </div>
     </div>

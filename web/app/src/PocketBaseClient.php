@@ -116,8 +116,48 @@ class PocketBaseClient
         }
     }
 
+    // ── PocketBase backups API ─────────────────────────────────
+    public function listBackups(): array
+    {
+        $result = $this->request('GET', '/api/backups');
+        return $result['items'] ?? $result;
+    }
+
+    public function createBackup(?string $name = null): array
+    {
+        $payload = [];
+        if ($name !== null && trim($name) !== '') {
+            $payload['name'] = trim($name);
+        }
+        return $this->request('POST', '/api/backups', $payload);
+    }
+
+    public function deleteBackup(string $name): void
+    {
+        $encodedName = rawurlencode($name);
+        $this->request('DELETE', "/api/backups/{$encodedName}");
+    }
+
+    public function restoreBackup(string $name): void
+    {
+        $encodedName = rawurlencode($name);
+        $this->request('POST', "/api/backups/{$encodedName}/restore", []);
+    }
+
+    public function downloadBackup(string $name): string
+    {
+        $encodedName = rawurlencode($name);
+        return $this->requestBody('GET', "/api/backups/{$encodedName}");
+    }
+
     // ── HTTP layer ──────────────────────────────────────────────
     private function request(string $method, string $url, ?array $data = null, bool $useToken = true): array
+    {
+        $response = $this->requestBody($method, $url, $data, $useToken);
+        return json_decode($response, true) ?: [];
+    }
+
+    private function requestBody(string $method, string $url, ?array $data = null, bool $useToken = true): string
     {
         $ch      = curl_init();
         $fullUrl = $this->baseUrl . $url;
@@ -167,6 +207,6 @@ class PocketBaseClient
             throw new \RuntimeException("PocketBase: {$msg}", $httpCode);
         }
 
-        return json_decode($response, true) ?: [];
+        return (string)$response;
     }
 }

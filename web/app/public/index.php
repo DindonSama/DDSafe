@@ -17,10 +17,10 @@ $pb            = new \App\PocketBaseClient($config['pocketbase']['url']);
 $auth          = new \App\Auth($pb, $config);
 $otpManager    = new \App\OTPManager($pb, $config['app_secret']);
 $tenantManager = new \App\TenantManager($pb);
-$backupExporter = new \App\BackupExporter($pb);
 $maxLogEntries = max(50, (int)($config['log_max_entries'] ?? 500));
-$auditLogger   = new \App\AuditLogger($pb, $maxLogEntries);
-$securityLogger = new \App\SecurityLogger($pb, $maxLogEntries);
+$logRetentionDays = max(1, (int)($config['log_retention_days'] ?? 30));
+$auditLogger   = new \App\AuditLogger($pb, $maxLogEntries, $logRetentionDays);
+$securityLogger = new \App\SecurityLogger($pb, $maxLogEntries, $logRetentionDays);
 
 // ── Auto-setup on first run ──────────────────────────────────────
 $setup = new \App\Setup($pb, $config);

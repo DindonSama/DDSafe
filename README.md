@@ -16,7 +16,7 @@ Application web de gestion de codes OTP (TOTP/HOTP) avec support multi-collectio
 - **Corbeille** — Les codes supprimés sont conservés et restaurables par un administrateur
 - **Journaux de sécurité** — Journal d'audit (actions OTP) et journal des échecs d'authentification
 - **Santé applicative** — Vue admin avec statut PocketBase, LDAP/OIDC, nombre de codes et derniers échecs d'auth
-- **Sauvegarde chiffrée admin** — Export chiffré de configuration + métadonnées, avec option d'exclusion des secrets
+- **Sauvegardes PocketBase** — Consultation et gestion des sauvegardes via l'API native PocketBase
 - **Thème sombre** — Interface entièrement adaptée au travail en conditions sombres
 
 ## Architecture
@@ -24,7 +24,7 @@ Application web de gestion de codes OTP (TOTP/HOTP) avec support multi-collectio
 | Service      | Image Docker                          | Rôle                                           |
 |--------------|---------------------------------------|------------------------------------------------|
 | `pb_2fa`     | `ghcr.io/muchobien/pocketbase:latest` | Base de données / API REST                     |
-| `php`        | `php:8.2-apache`                      | Application web PHP + routine de backup planifiée |
+| `php`        | `php:8.2-apache`                      | Application web PHP |
 
 > Aucun Dockerfile n'est utilisé — uniquement des images Docker officielles.
 
@@ -245,81 +245,22 @@ Page admin disponible via `/admin/health` :
 
 ---
 
-## Sauvegarde / Export admin
+## Sauvegardes PocketBase (via API)
 
 Page admin disponible via `/admin/backup` :
 
-- Export chiffré AES-256-CBC (enveloppe JSON)
-- Export non chiffré (JSON) possible
-- Option pour inclure ou exclure les secrets
-- Vérification d'un backup (structure + compte des éléments)
-- Import best-effort d'un backup (collections/groupes/OTP)
+- Créer une sauvegarde via l'API PocketBase
+- Lister les sauvegardes existantes
+- Télécharger une sauvegarde
+- Supprimer une sauvegarde
+- Restaurer une sauvegarde
 
-Recommandation : garder les secrets exclus pour les exports de routine.
+Cette page pilote exclusivement les endpoints natifs PocketBase (`/api/backups`).
 
-Note import :
+Note restauration :
 
-- Les OTP sans `secret_enc` sont ignorés à l'import.
-- L'import se fait en correspondance best-effort (tenant/groupe par nom, propriétaire par email).
-- En mode overwrite, les OTP existants (même nom/issuer/collection) peuvent être mis à jour.
-
----
-
-## Routine backup planifiee (daily/weekly/monthly)
-
-La routine de backup tourne dans le conteneur `php` et genere automatiquement des sauvegardes dans le dossier `./backups`.
-
-La configuration est modifiable depuis l'interface admin **Sante applicative** (`/admin/health`), sans redemarrage du conteneur.
-
-### Activer la routine
-
-Dans le `.env` :
-
-```env
-BACKUP_SCHEDULER_ENABLED=true
-BACKUP_SCHEDULES=daily,weekly,monthly
-BACKUP_RUN_HOUR=2
-BACKUP_WEEKLY_DAY=7
-BACKUP_MONTHLY_DAY=1
-BACKUP_EXPORT_MODE=encrypted
-BACKUP_INCLUDE_SECRETS=false
-BACKUP_PASSPHRASE=une-passphrase-longue-et-unique
-BACKUP_RETENTION_DAILY=14
-BACKUP_RETENTION_WEEKLY=8
-BACKUP_RETENTION_MONTHLY=12
-BACKUP_CHECK_INTERVAL_SECONDS=300
-TZ=Europe/Paris
-```
-
-Puis relancer :
-
-```bash
-docker compose up -d
-```
-
-### Parametres principaux
-
-- `BACKUP_SCHEDULES` : periodes actives (`daily`, `weekly`, `monthly`).
-- `BACKUP_RUN_HOUR` : heure d'execution (0-23).
-- `BACKUP_WEEKLY_DAY` : jour ISO de la semaine (1=lundi ... 7=dimanche).
-- `BACKUP_MONTHLY_DAY` : jour du mois (si invalide pour le mois, dernier jour du mois).
-- `BACKUP_EXPORT_MODE` : `encrypted` ou `plain`.
-- `BACKUP_INCLUDE_SECRETS` : inclure les secrets OTP (`true`/`false`).
-- `BACKUP_RETENTION_*` : nombre de fichiers conserves par periode.
-- `BACKUP_CHECK_INTERVAL_SECONDS` : frequence de verification du scheduler.
-
-### Nommage et retention
-
-- Les fichiers sont nommes avec le type de periode (`daily`, `weekly`, `monthly`) et un timestamp UTC.
-- Le scheduler conserve uniquement les `N` derniers fichiers par periode selon la retention configuree.
-- En mode `encrypted`, les fichiers utilisent l'extension `.enc.json`; en mode `plain`, `.json`.
-
-### Recommandations
-
-- Utiliser `BACKUP_EXPORT_MODE=encrypted` en production.
-- Definir une passphrase forte dans `BACKUP_PASSPHRASE`.
-- Garder `BACKUP_INCLUDE_SECRETS=false` pour les exports de routine si vous n'avez pas besoin de restaurer les secrets OTP.
-- Sauvegarder regulierement le dossier `./backups` vers un stockage externe.
+- Une restauration peut provoquer un redémarrage du service PocketBase.
+- Vérifiez l'espace disque disponible avant de restaurer une archive volumineuse.
 
 ---
 

@@ -8,11 +8,13 @@ class AuditLogger
 {
     private PocketBaseClient $pb;
     private int $maxEntries;
+    private int $retentionDays;
 
-    public function __construct(PocketBaseClient $pb, int $maxEntries = 500)
+    public function __construct(PocketBaseClient $pb, int $maxEntries = 500, int $retentionDays = 30)
     {
         $this->pb = $pb;
         $this->maxEntries = max(50, $maxEntries);
+        $this->retentionDays = max(1, $retentionDays);
     }
 
     public function log(string $category, string $action, array $actor, array $context = []): void
@@ -32,6 +34,7 @@ class AuditLogger
             ];
 
             $this->pb->createRecord('audit_logs', $payload);
+            $this->trimByAge();
             $this->trimOverflow();
         } catch (\Exception) {
             // Auditing must not break core features.
@@ -87,6 +90,36 @@ class AuditLogger
                         if ($overflow <= 0) {
                             break;
                         }
+                    }
+                }
+            }
+        } catch (\Exception) {
+            // Silent by design.
+        }
+    }
+
+    private function trimByAge(): void
+    {
+        try {
+            $threshold = gmdate('c', time() - ($this->retentionDays * 86400));
+
+            while (true) {
+                $old = $this->pb->listRecords('audit_logs', [
+                    'filter' => 'logged_at < "' . $threshold . '"',
+                    'sort' => 'logged_at',
+                    'perPage' => 100,
+                    'page' => 1,
+                ]);
+
+                $items = $old['items'] ?? [];
+                if (empty($items)) {
+                    break;
+                }
+
+                foreach ($items as $item) {
+                    $id = (string)($item['id'] ?? '');
+                    if ($id !== '') {
+                        $this->pb->deleteRecord('audit_logs', $id);
                     }
                 }
             }

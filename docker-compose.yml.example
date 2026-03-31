@@ -21,9 +21,7 @@ services:
     volumes:
       - ./web/app:/var/www/app
       - ./web/scripts/php-start.sh:/start.sh:ro
-      - ./web/scripts/backup-scheduler.php:/scheduler/backup-scheduler.php:ro
       - ./web/composer:/usr/local/bin/composer_cache
-      - ./backups:/backups
     ports:
       - "${APP_PORT:-8080}:80"
     environment:
@@ -56,19 +54,6 @@ services:
       APP_ADMIN_PASSWORD: "${APP_ADMIN_PASSWORD:-admin123}"
       APP_ADMIN_NAME: "${APP_ADMIN_NAME:-Administrateur}"
       EXTENSION_APP_URL: "${EXTENSION_APP_URL:-http://localhost:8080}"
-      BACKUP_SCHEDULER_ENABLED: "${BACKUP_SCHEDULER_ENABLED:-false}"
-      BACKUP_SCHEDULES: "${BACKUP_SCHEDULES:-daily,weekly,monthly}"
-      BACKUP_RUN_HOUR: "${BACKUP_RUN_HOUR:-2}"
-      BACKUP_WEEKLY_DAY: "${BACKUP_WEEKLY_DAY:-7}"
-      BACKUP_MONTHLY_DAY: "${BACKUP_MONTHLY_DAY:-1}"
-      BACKUP_EXPORT_MODE: "${BACKUP_EXPORT_MODE:-encrypted}"
-      BACKUP_INCLUDE_SECRETS: "${BACKUP_INCLUDE_SECRETS:-false}"
-      BACKUP_PASSPHRASE: "${BACKUP_PASSPHRASE:-}"
-      BACKUP_OUTPUT_DIR: "/backups"
-      BACKUP_RETENTION_DAILY: "${BACKUP_RETENTION_DAILY:-14}"
-      BACKUP_RETENTION_WEEKLY: "${BACKUP_RETENTION_WEEKLY:-8}"
-      BACKUP_RETENTION_MONTHLY: "${BACKUP_RETENTION_MONTHLY:-12}"
-      BACKUP_CHECK_INTERVAL_SECONDS: "${BACKUP_CHECK_INTERVAL_SECONDS:-300}"
       TZ: "${TZ:-Europe/Paris}"
     depends_on:
       pb_2fa:

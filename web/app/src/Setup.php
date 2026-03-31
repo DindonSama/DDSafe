@@ -32,7 +32,6 @@ class Setup
                 $this->extendUsersCollection();
                 $this->ensureAuditCollections();
                 $this->ensureRuntimeSettingsCollection();
-                $this->ensureBackupSchedulerRuntimeSetting();
                 $this->createCollectionIfMissing('otp_groups', [
                     ['name' => 'name',       'type' => 'text',     'required' => true,  'min' => 1, 'max' => 120],
                     ['name' => 'tenant',     'type' => 'relation', 'required' => true,  'collectionId' => $this->getCollectionId('tenants'), 'maxSelect' => 1, 'cascadeDelete' => true],
@@ -65,7 +64,6 @@ class Setup
         $this->extendUsersCollection();
         $this->ensureAuditCollections();
         $this->ensureRuntimeSettingsCollection();
-        $this->ensureBackupSchedulerRuntimeSetting();
 
         // 3. Create custom collections
         $this->createCollectionIfMissing('tenants', [
@@ -206,32 +204,6 @@ class Setup
             ['name' => 'key',   'type' => 'text', 'required' => true, 'min' => 1, 'max' => 120],
             ['name' => 'value', 'type' => 'text', 'required' => true],
         ]);
-    }
-
-    private function ensureBackupSchedulerRuntimeSetting(): void
-    {
-        $runtime = new RuntimeSettings($this->pb);
-        $existing = $runtime->getJson('backup_scheduler', []);
-        if (!empty($existing)) {
-            return;
-        }
-
-        $default = [
-            'enabled' => !empty($this->config['backup_scheduler']['enabled']),
-            'schedules' => (string)($this->config['backup_scheduler']['schedules'] ?? 'daily,weekly,monthly'),
-            'run_hour' => (int)($this->config['backup_scheduler']['run_hour'] ?? 2),
-            'weekly_day' => (int)($this->config['backup_scheduler']['weekly_day'] ?? 7),
-            'monthly_day' => (int)($this->config['backup_scheduler']['monthly_day'] ?? 1),
-            'export_mode' => (string)($this->config['backup_scheduler']['export_mode'] ?? 'encrypted'),
-            'include_secrets' => !empty($this->config['backup_scheduler']['include_secrets']),
-            'passphrase' => (string)($this->config['backup_scheduler']['passphrase'] ?? ''),
-            'retention_daily' => (int)($this->config['backup_scheduler']['retention_daily'] ?? 14),
-            'retention_weekly' => (int)($this->config['backup_scheduler']['retention_weekly'] ?? 8),
-            'retention_monthly' => (int)($this->config['backup_scheduler']['retention_monthly'] ?? 12),
-            'check_interval_seconds' => (int)($this->config['backup_scheduler']['check_interval_seconds'] ?? 300),
-        ];
-
-        $runtime->setJson('backup_scheduler', $default);
     }
 
     private function getUsersCollectionId(): string
