@@ -55,6 +55,12 @@ services:
       APP_ADMIN_NAME: "${APP_ADMIN_NAME:-Administrateur}"
       EXTENSION_APP_URL: "${EXTENSION_APP_URL:-http://localhost:8080}"
       TZ: "${TZ:-Europe/Paris}"
+    healthcheck:
+      test: ["CMD-SHELL", "php -r '$$s=@fsockopen(\"127.0.0.1\",80); if($$s){fclose($$s); exit(0);} exit(1);'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
     depends_on:
       pb_2fa:
         condition: service_healthy
