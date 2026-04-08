@@ -46,8 +46,41 @@ function handleOtpCardKey(event, card, id) {
     }
 }
 
+/** Copy the next OTP code when clicking on .next-code-display */
+function copyNextOtpCode(event, el) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    if (!el) return;
+
+    const code = (el.textContent || '').replace(/[^0-9]/g, '');
+    if (!code) return;
+
+    function showCopiedFeedback() {
+        const card = el.closest('.otp-account');
+        if (card) {
+            card.classList.add('copied');
+            setTimeout(() => card.classList.remove('copied'), 1200);
+        }
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(code).then(showCopiedFeedback);
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = code;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showCopiedFeedback();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
     // ── OTP Code Refresh (circular ring) ─────────────────────────
     const otpElements = document.querySelectorAll('[data-otp-id]');
@@ -69,6 +102,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         // Update code displays
                         document.querySelectorAll(`[data-otp-id="${id}"] .code-display`).forEach(el => {
                             el.textContent = formatCode(info.code);
+                        });
+                        document.querySelectorAll(`[data-otp-id="${id}"] .next-code-display`).forEach(el => {
+                            el.textContent = formatCode(info.next_code || '');
                         });
 
                         // Update countdown rings
@@ -341,6 +377,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Live Search + Issuer Filter (client-side filtering) ─────
     const otpSearch = document.getElementById('otp-search');
     const otpIssuerFilter = document.getElementById('otp-issuer-filter');
+    const otpFavoritesOnlyBtn = document.getElementById('otp-favorites-only-btn');
+    let favoritesOnly = false;
 
     function applyOtpFilters() {
         const q = (otpSearch?.value || '').toLowerCase().trim();
@@ -349,9 +387,21 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.otp-item').forEach(item => {
             const name = (item.dataset.name || '').toLowerCase();
             const issuer = (item.dataset.issuer || '').toLowerCase();
+            const isFavorite = (item.dataset.favorite || '0') === '1';
             const matchSearch = q === '' || name.includes(q) || issuer.includes(q);
             const matchIssuer = issuerFilter === '' || issuer === issuerFilter;
-            item.style.display = matchSearch && matchIssuer ? '' : 'none';
+            const matchFavorite = !favoritesOnly || isFavorite;
+            item.style.display = matchSearch && matchIssuer && matchFavorite ? '' : 'none';
+        });
+    }
+
+    if (otpFavoritesOnlyBtn) {
+        otpFavoritesOnlyBtn.addEventListener('click', function () {
+            favoritesOnly = !favoritesOnly;
+            otpFavoritesOnlyBtn.setAttribute('aria-pressed', favoritesOnly ? 'true' : 'false');
+            otpFavoritesOnlyBtn.classList.toggle('btn-warning', favoritesOnly);
+            otpFavoritesOnlyBtn.classList.toggle('btn-outline-warning', !favoritesOnly);
+            applyOtpFilters();
         });
     }
 
@@ -383,7 +433,57 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (otpSearch) {
+        let otpSearchWasBlurred = false;
+
         otpSearch.addEventListener('input', applyOtpFilters);
+        otpSearch.addEventListener('blur', function () {
+            otpSearchWasBlurred = true;
+        });
+        otpSearch.addEventListener('focus', function () {
+            if (!otpSearchWasBlurred) {
+                return;
+            }
+            if (otpSearch.value !== '') {
+                otpSearch.value = '';
+                otpSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            otpSearchWasBlurred = false;
+        });
+
+        // Quick search UX: typing on empty page space writes directly into the search input.
+        document.addEventListener('keydown', function (event) {
+            const active = document.activeElement;
+            const activeTag = (active?.tagName || '').toLowerCase();
+            const isEditable = !!active && (
+                activeTag === 'input' ||
+                activeTag === 'textarea' ||
+                activeTag === 'select' ||
+                active.isContentEditable
+            );
+
+            if (isEditable) {
+                return;
+            }
+
+            if (event.ctrlKey || event.metaKey || event.altKey) {
+                return;
+            }
+
+            if (event.key.length === 1 && !event.key.match(/\s/)) {
+                event.preventDefault();
+                otpSearch.focus();
+                otpSearch.value = (otpSearch.value || '') + event.key;
+                otpSearch.dispatchEvent(new Event('input', { bubbles: true }));
+                return;
+            }
+
+            if (event.key === 'Backspace' && (otpSearch.value || '') !== '') {
+                event.preventDefault();
+                otpSearch.focus();
+                otpSearch.value = otpSearch.value.slice(0, -1);
+                otpSearch.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
     }
 
     const searchInputs = document.querySelectorAll('[data-live-search]');

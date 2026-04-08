@@ -154,5 +154,57 @@ if ($path === '/api/otp/parse-bulk' && $method === 'POST') {
     exit;
 }
 
+// ── POST /api/otp/favorites/toggle — toggle favorite state ─────
+if ($path === '/api/otp/favorites/toggle' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $otpId = preg_replace('/[^a-zA-Z0-9]/', '', (string)($input['id'] ?? ''));
+
+    if ($otpId === '') {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'error' => 'Identifiant OTP manquant']);
+        exit;
+    }
+
+    $record = $otpManager->getById($otpId);
+    if (!$record || !empty($record['deleted'])) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Code OTP introuvable']);
+        exit;
+    }
+
+    $canView = false;
+    if (!empty($currentUser['is_app_admin'])) {
+        $canView = true;
+    } elseif (!empty($record['is_personal'])) {
+        $canView = (string)($record['owner'] ?? '') === (string)($currentUser['id'] ?? '');
+    } else {
+        $tenantId = (string)($record['tenant'] ?? '');
+        if ($tenantId !== '') {
+            $userTenants = $tenantManager->getUserTenants((string)($currentUser['id'] ?? ''));
+            foreach ($userTenants as $tenant) {
+                if ((string)($tenant['id'] ?? '') === $tenantId) {
+                    $canView = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!$canView) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Acces refuse']);
+        exit;
+    }
+
+    try {
+        $isFavorite = $otpManager->toggleFavorite((string)($currentUser['id'] ?? ''), $otpId);
+        echo json_encode(['success' => true, 'favorite' => $isFavorite]);
+    } catch (\Exception $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Mise a jour du favori impossible']);
+    }
+    exit;
+}
+
 http_response_code(404);
 echo json_encode(['error' => 'Route API introuvable']);

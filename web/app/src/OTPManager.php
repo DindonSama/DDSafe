@@ -152,6 +152,72 @@ class OTPManager
         return $this->pb->getRecord('otp_groups', $groupId);
     }
 
+    public function getFavoriteCodeIds(string $userId): array
+    {
+        $result = $this->pb->listRecords('otp_favorites', [
+            'filter'  => "user='{$this->esc($userId)}'",
+            'perPage' => 500,
+        ]);
+
+        $ids = [];
+        foreach (($result['items'] ?? []) as $item) {
+            $otpId = (string)($item['otp'] ?? '');
+            if ($otpId !== '') {
+                $ids[$otpId] = true;
+            }
+        }
+
+        return array_keys($ids);
+    }
+
+    public function isFavorite(string $userId, string $otpId): bool
+    {
+        $result = $this->pb->listRecords('otp_favorites', [
+            'filter'  => "user='{$this->esc($userId)}' && otp='{$this->esc($otpId)}'",
+            'perPage' => 1,
+        ]);
+
+        return !empty($result['items']);
+    }
+
+    public function setFavorite(string $userId, string $otpId): void
+    {
+        if ($this->isFavorite($userId, $otpId)) {
+            return;
+        }
+
+        $this->pb->createRecord('otp_favorites', [
+            'user' => $userId,
+            'otp'  => $otpId,
+        ]);
+    }
+
+    public function removeFavorite(string $userId, string $otpId): void
+    {
+        $result = $this->pb->listRecords('otp_favorites', [
+            'filter'  => "user='{$this->esc($userId)}' && otp='{$this->esc($otpId)}'",
+            'perPage' => 200,
+        ]);
+
+        foreach (($result['items'] ?? []) as $item) {
+            $id = (string)($item['id'] ?? '');
+            if ($id !== '') {
+                $this->pb->deleteRecord('otp_favorites', $id);
+            }
+        }
+    }
+
+    public function toggleFavorite(string $userId, string $otpId): bool
+    {
+        if ($this->isFavorite($userId, $otpId)) {
+            $this->removeFavorite($userId, $otpId);
+            return false;
+        }
+
+        $this->setFavorite($userId, $otpId);
+        return true;
+    }
+
     public function createGroup(string $tenantId, string $name, string $createdBy): array
     {
         return $this->pb->createRecord('otp_groups', [
@@ -237,7 +303,7 @@ class OTPManager
     {
         $secret = $record['secret'] ?? $this->decrypt($record['secret_enc'] ?? '');
         if (!$secret) {
-            return ['code' => '------', 'remaining' => 0];
+            return ['code' => '------', 'next_code' => '------', 'remaining' => 0];
         }
 
         $algo   = strtolower($record['algorithm'] ?? 'sha1');
@@ -249,10 +315,13 @@ class OTPManager
         $otp->setDigits($digits);
         $otp->setPeriod($period);
 
-        $remaining = $period - (time() % $period);
+        $now = time();
+        $remaining = $period - ($now % $period);
+        $nextAt = $now + $remaining;
 
         return [
-            'code'      => $otp->now(),
+            'code'      => $otp->at($now),
+            'next_code' => $otp->at($nextAt),
             'remaining' => $remaining,
             'period'    => $period,
         ];

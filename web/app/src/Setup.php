@@ -37,9 +37,14 @@ class Setup
                     ['name' => 'tenant',     'type' => 'relation', 'required' => true,  'collectionId' => $this->getCollectionId('tenants'), 'maxSelect' => 1, 'cascadeDelete' => true],
                     ['name' => 'created_by', 'type' => 'relation', 'required' => false, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => false],
                 ]);
+                $this->createCollectionIfMissing('otp_favorites', [
+                    ['name' => 'user', 'type' => 'relation', 'required' => true, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => true],
+                    ['name' => 'otp',  'type' => 'relation', 'required' => true, 'collectionId' => $this->getCollectionId('otp_codes'), 'maxSelect' => 1, 'cascadeDelete' => true],
+                ]);
                 $this->migrateTenantsCollection();
                 $this->migrateTenantMembersCollection();
                 $this->migrateOtpCodesCollection();
+                $this->migrateOtpFavoritesCollection();
                 $_SESSION['pb_initialized'] = true;
                 return true;
             }
@@ -110,7 +115,13 @@ class Setup
             ['name' => 'deleted_at',  'type' => 'text',     'required' => false],
         ]);
 
+        $this->createCollectionIfMissing('otp_favorites', [
+            ['name' => 'user', 'type' => 'relation', 'required' => true, 'collectionId' => $this->getUsersCollectionId(), 'maxSelect' => 1, 'cascadeDelete' => true],
+            ['name' => 'otp',  'type' => 'relation', 'required' => true, 'collectionId' => $this->getCollectionId('otp_codes'), 'maxSelect' => 1, 'cascadeDelete' => true],
+        ]);
+
         $this->migrateOtpCodesCollection();
+        $this->migrateOtpFavoritesCollection();
 
         // 4. Create default app user
         $this->createDefaultUser();
@@ -397,6 +408,50 @@ class Setup
                 'collectionId' => $this->getCollectionId('otp_groups'),
                 'maxSelect' => 1,
                 'cascadeDelete' => false,
+            ];
+            $changed = true;
+        }
+
+        if ($changed) {
+            $this->pb->updateCollection($collection['id'], ['fields' => $fields]);
+        }
+    }
+
+    private function migrateOtpFavoritesCollection(): void
+    {
+        $collection = $this->pb->getCollection('otp_favorites');
+        if (!$collection) {
+            return;
+        }
+
+        $fields = $collection['fields'] ?? [];
+        if (!$fields) {
+            return;
+        }
+
+        $existing = array_column($fields, 'name');
+        $changed = false;
+
+        if (!in_array('user', $existing, true)) {
+            $fields[] = [
+                'name' => 'user',
+                'type' => 'relation',
+                'required' => true,
+                'collectionId' => $this->getUsersCollectionId(),
+                'maxSelect' => 1,
+                'cascadeDelete' => true,
+            ];
+            $changed = true;
+        }
+
+        if (!in_array('otp', $existing, true)) {
+            $fields[] = [
+                'name' => 'otp',
+                'type' => 'relation',
+                'required' => true,
+                'collectionId' => $this->getCollectionId('otp_codes'),
+                'maxSelect' => 1,
+                'cascadeDelete' => true,
             ];
             $changed = true;
         }

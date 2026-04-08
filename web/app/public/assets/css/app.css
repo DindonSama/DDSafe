@@ -330,6 +330,39 @@ a:hover { color: var(--accent-hover); }
     align-items: center;
     justify-content: center;
 }
+.otp-account .otp-next {
+    margin-top: .45rem;
+    width: 100%;
+    background: rgba(250, 166, 26, .12);
+    border: 1px solid rgba(250, 166, 26, .38);
+    border-radius: 10px;
+    padding: .28rem .45rem;
+    font-size: .72rem;
+    color: #ffd98a;
+}
+.otp-account .otp-next .next-code-display {
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: .9rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #ffe7b3;
+    cursor: copy;
+}
+.table .next-code-display {
+    display: inline-block;
+    min-width: 92px;
+    padding: .12rem .35rem;
+    border-radius: 8px;
+    background: rgba(250, 166, 26, .14);
+    border: 1px solid rgba(250, 166, 26, .34);
+    color: #ffe2a3;
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: .95rem;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-align: center;
+    cursor: copy;
+}
 
 /* Anneau de compte a rebours circulaire */
 .otp-account .countdown-ring {
@@ -393,11 +426,14 @@ a:hover { color: var(--accent-hover); }
     position: absolute;
     top: .5rem;
     right: .5rem;
-    opacity: 0;
+    opacity: 1;
     transition: opacity .15s;
 }
 .otp-account:hover .account-actions,
 .otp-account:focus-within .account-actions {
+    opacity: 1;
+}
+.otp-account .account-actions.has-favorite {
     opacity: 1;
 }
 .account-actions .btn-action {
@@ -417,6 +453,14 @@ a:hover { color: var(--accent-hover); }
 .account-actions .btn-action:hover {
     background: rgba(255,255,255,.15);
     color: var(--text-primary);
+}
+.account-actions .btn-action.is-favorite {
+    color: #f4c430;
+    background: rgba(244,196,48,.18);
+}
+.account-actions .btn-action.is-favorite:hover {
+    color: #ffd34d;
+    background: rgba(244,196,48,.28);
 }
 .account-actions .btn-action.text-danger:hover {
     background: rgba(237,66,69,.15);

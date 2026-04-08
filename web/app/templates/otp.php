@@ -29,6 +29,7 @@
 /** @var string $personalSectionTitle */
 /** @var bool $isAppAdmin */
 /** @var string $selectedPersonalUserId */
+/** @var array $favoriteCodeIdMap */
 $iconColors = ['#5865f2','#3ba55c','#ed4245','#faa61a','#eb459e','#57f287','#5dadec','#fee75c'];
 $otpReturnPath = !empty($currentFolderId) ? '/otp?folder=' . rawurlencode($currentFolderId) : '/otp';
 
@@ -167,7 +168,7 @@ ob_start();
 </div>
 
 <div class="row g-2 mb-3">
-    <div class="col-md-8">
+    <div class="col-md-6">
         <label for="otp-search" class="visually-hidden">Rechercher un code OTP</label>
         <input type="text" id="otp-search" class="form-control" placeholder="Rechercher un code OTP..."
                value="<?= htmlspecialchars($search ?? '') ?>" autofocus>
@@ -177,6 +178,11 @@ ob_start();
         <select id="otp-issuer-filter" class="form-select">
             <option value="">Tous les émetteurs</option>
         </select>
+    </div>
+    <div class="col-md-2">
+        <button type="button" id="otp-favorites-only-btn" class="btn btn-outline-warning w-100" aria-pressed="false" title="Afficher uniquement les favoris">
+            <i class="bi bi-star-fill me-1"></i>Favoris
+        </button>
     </div>
 </div>
 
@@ -202,6 +208,8 @@ ob_start();
                         <th>Nom</th>
                         <th>Émetteur</th>
                         <th>Type</th>
+                        <th>Code</th>
+                        <th>Suivant</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -209,8 +217,9 @@ ob_start();
                     <?php foreach ($personalCodes as $code):
                         $canManagePersonalCode = !empty($currentUser['is_app_admin']) || ((string)($code['owner'] ?? '') === (string)($currentUser['id'] ?? ''));
                         $canExportPersonalCode = $canManagePersonalCode;
+                        $isFavoriteCode = !empty($favoriteCodeIdMap[(string)($code['id'] ?? '')]);
                     ?>
-                    <tr class="otp-item" data-name="<?= htmlspecialchars(strtolower($code['name'])) ?>" data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>">
+                    <tr class="otp-item" data-name="<?= htmlspecialchars(strtolower($code['name'])) ?>" data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>" data-favorite="<?= $isFavoriteCode ? '1' : '0' ?>">
                         <?php if (!empty($canExportOtp)): ?>
                         <td>
                             <?php if ($canExportPersonalCode): ?>
@@ -221,8 +230,21 @@ ob_start();
                         <td><?= htmlspecialchars($code['name']) ?></td>
                         <td><?= htmlspecialchars($code['issuer'] ?? '-') ?></td>
                         <td><span class="badge text-bg-primary">Personnel</span></td>
+                        <td data-otp-id="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>"><span class="code-display">···  ···</span></td>
+                        <td data-otp-id="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>"><span class="next-code-display" role="button" tabindex="0" title="Copier le code OTP suivant" onclick="copyNextOtpCode(event, this)" onkeydown="if(event.key==='Enter'||event.key===' '){copyNextOtpCode(event,this);}">···  ···</span></td>
                         <td>
                             <div class="d-flex gap-1">
+                                <form method="POST" action="/otp/favorites/toggle" class="d-inline">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="id" value="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>">
+                                    <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
+                                    <button type="submit"
+                                            class="btn btn-sm <?= $isFavoriteCode ? 'btn-warning' : 'btn-outline-secondary' ?>"
+                                            title="<?= $isFavoriteCode ? 'Retirer des favoris' : 'Ajouter aux favoris' ?>"
+                                            aria-label="<?= $isFavoriteCode ? 'Retirer des favoris' : 'Ajouter aux favoris' ?>">
+                                        <i class="bi <?= $isFavoriteCode ? 'bi-star-fill' : 'bi-star' ?>"></i>
+                                    </button>
+                                </form>
                                 <?php if ($canManagePersonalCode): ?>
                                 <button type="button" class="btn btn-sm btn-outline-primary btn-edit-otp"
                                         data-id="<?= htmlspecialchars($code['id']) ?>"
@@ -255,13 +277,16 @@ ob_start();
                 $avatarColor  = $avatarIcon ? '' : otpIssuerColor($code['issuer'] ?: $code['name'], $iconColors);
                 $canExportPersonalCode = !empty($currentUser['is_app_admin']) || ((string)($code['owner'] ?? '') === (string)($currentUser['id'] ?? ''));
                 $canManagePersonalCode = $canExportPersonalCode;
+                $isFavoriteCode = !empty($favoriteCodeIdMap[(string)($code['id'] ?? '')]);
             ?>
                 <div class="otp-account otp-item"
                      role="button"
                      tabindex="0"
                      aria-label="Copier le code OTP de <?= htmlspecialchars($code['name']) ?>"
+                     data-otp-id="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>"
                      data-name="<?= htmlspecialchars(strtolower($code['name'])) ?>"
                      data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>"
+                     data-favorite="<?= $isFavoriteCode ? '1' : '0' ?>"
                      onclick="copyOtpCode(this, '<?= htmlspecialchars($code['id']) ?>')" onkeydown="handleOtpCardKey(event, this, '<?= htmlspecialchars($code['id']) ?>')">
 
                     <?php if ($canExportPersonalCode): ?>
@@ -274,7 +299,18 @@ ob_start();
                     </div>
                     <?php endif; ?>
 
-                    <div class="account-actions" onclick="event.stopPropagation()">
+                    <div class="account-actions<?= $isFavoriteCode ? ' has-favorite' : '' ?>" onclick="event.stopPropagation()">
+                        <form method="POST" action="/otp/favorites/toggle" class="d-inline" onclick="event.stopPropagation()">
+                            <?= csrfField() ?>
+                            <input type="hidden" name="id" value="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>">
+                            <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
+                            <button type="submit"
+                                    class="btn-action<?= $isFavoriteCode ? ' is-favorite' : '' ?>"
+                                    title="<?= $isFavoriteCode ? 'Retirer des favoris' : 'Ajouter aux favoris' ?>"
+                                    aria-label="<?= $isFavoriteCode ? 'Retirer des favoris' : 'Ajouter aux favoris' ?>">
+                                <i class="bi <?= $isFavoriteCode ? 'bi-star-fill' : 'bi-star' ?>"></i>
+                            </button>
+                        </form>
                         <div class="dropdown d-inline">
                             <button type="button" class="btn-action" data-bs-toggle="dropdown">
                                 <i class="bi bi-three-dots"></i>
@@ -331,6 +367,7 @@ ob_start();
                             <span class="code-display">···  ···</span>
                         </div>
                     </div>
+                    <div class="otp-next" data-otp-id="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>"><small>Suivant: <span class="next-code-display" role="button" tabindex="0" title="Copier le code OTP suivant" onclick="copyNextOtpCode(event, this)" onkeydown="if(event.key==='Enter'||event.key===' '){copyNextOtpCode(event,this);}">···  ···</span></small></div>
                     <div class="copy-toast"><i class="bi bi-check-lg me-1"></i>Copié</div>
                 </div>
             <?php endforeach; ?>
@@ -343,7 +380,18 @@ ob_start();
     <?php if ($showTenantCodes): ?>
     <?php if (!empty($currentTenantId)): ?>
     <div class="otp-layout">
+        <?php
+            $allTenantCount = count($rootTenantCodes);
+            foreach ($tenantFolders as $folder) {
+                $allTenantCount += (int)($folder['code_count'] ?? 0);
+            }
+        ?>
         <nav class="folder-sidebar">
+            <a href="/otp?folder=all" class="folder-sidebar-item <?= $currentFolderId === 'all' ? 'active' : '' ?>">
+                <i class="bi bi-collection-fill"></i>
+                <span class="folder-sidebar-name">Tous</span>
+                <span class="folder-sidebar-badge"><?= $allTenantCount ?></span>
+            </a>
             <a href="/otp" class="folder-sidebar-item <?= $currentFolderId === '' ? 'active' : '' ?>">
                 <i class="bi bi-house-fill"></i>
                 <span class="folder-sidebar-name">Racine</span>
@@ -412,6 +460,8 @@ ob_start();
                     <th>Émetteur</th>
                     <th>Collection</th>
                     <th>Dossier</th>
+                    <th>Code</th>
+                    <th>Suivant</th>
                     <th>Droits</th>
                     <th>Actions</th>
                 </tr>
@@ -424,8 +474,9 @@ ob_start();
                     $canEditTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantEditOtpMap[$tenantId]);
                     $canDeleteTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantDeleteOtpMap[$tenantId]);
                     $canExportTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantExportOtpMap[$tenantId]);
+                    $isFavoriteCode = !empty($favoriteCodeIdMap[(string)($code['id'] ?? '')]);
                 ?>
-                <tr class="otp-item" data-name="<?= htmlspecialchars(strtolower($code['name'])) ?>" data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>">
+                <tr class="otp-item" data-name="<?= htmlspecialchars(strtolower($code['name'])) ?>" data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>" data-favorite="<?= $isFavoriteCode ? '1' : '0' ?>">
                     <?php if (!empty($canExportOtp)): ?>
                     <td>
                         <?php if ($canExportTenantCode): ?>
@@ -437,6 +488,8 @@ ob_start();
                     <td><?= htmlspecialchars($code['issuer'] ?? '-') ?></td>
                     <td><?= htmlspecialchars($currentTenantName) ?></td>
                     <td><?= htmlspecialchars($groupName !== '' ? $groupName : 'Racine') ?></td>
+                    <td data-otp-id="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>"><span class="code-display">···  ···</span></td>
+                    <td data-otp-id="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>"><span class="next-code-display" role="button" tabindex="0" title="Copier le code OTP suivant" onclick="copyNextOtpCode(event, this)" onkeydown="if(event.key==='Enter'||event.key===' '){copyNextOtpCode(event,this);}">···  ···</span></td>
                     <td>
                         <?php if (!$canEditTenantCode && !$canDeleteTenantCode): ?><span class="badge text-bg-secondary">Lecture seule</span><?php endif; ?>
                         <?php if ($canExportTenantCode): ?><span class="badge text-bg-info">Export autorisé</span><?php endif; ?>
@@ -444,6 +497,17 @@ ob_start();
                     </td>
                     <td>
                         <div class="d-flex gap-1">
+                            <form method="POST" action="/otp/favorites/toggle" class="d-inline">
+                                <?= csrfField() ?>
+                                <input type="hidden" name="id" value="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>">
+                                <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
+                                <button type="submit"
+                                        class="btn btn-sm <?= $isFavoriteCode ? 'btn-warning' : 'btn-outline-secondary' ?>"
+                                        title="<?= $isFavoriteCode ? 'Retirer des favoris' : 'Ajouter aux favoris' ?>"
+                                        aria-label="<?= $isFavoriteCode ? 'Retirer des favoris' : 'Ajouter aux favoris' ?>">
+                                    <i class="bi <?= $isFavoriteCode ? 'bi-star-fill' : 'bi-star' ?>"></i>
+                                </button>
+                            </form>
                             <?php if ($canEditTenantCode): ?>
                             <button type="button" class="btn btn-sm btn-outline-primary btn-edit-otp"
                                     data-id="<?= htmlspecialchars($code['id']) ?>"
@@ -483,13 +547,16 @@ ob_start();
             $canDeleteTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantDeleteOtpMap[$tenantId]);
             $canManageTenantCode = $canEditTenantCode || $isCodeOwner;
             $canExportTenantCode = !empty($currentUser['is_app_admin']) || !empty($tenantExportOtpMap[$tenantId]);
+            $isFavoriteCode = !empty($favoriteCodeIdMap[(string)($code['id'] ?? '')]);
         ?>
             <div class="otp-account is-tenant otp-item"
                  role="button"
                  tabindex="0"
                  aria-label="Copier le code OTP de <?= htmlspecialchars($code['name']) ?>"
+                  data-otp-id="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>"
                  data-name="<?= htmlspecialchars(strtolower($code['name'])) ?>"
                  data-issuer="<?= htmlspecialchars(strtolower($code['issuer'] ?? '')) ?>"
+                  data-favorite="<?= $isFavoriteCode ? '1' : '0' ?>"
                  onclick="copyOtpCode(this, '<?= htmlspecialchars($code['id']) ?>')" onkeydown="handleOtpCardKey(event, this, '<?= htmlspecialchars($code['id']) ?>')">
 
                 <?php if ($canExportTenantCode): ?>
@@ -502,7 +569,18 @@ ob_start();
                 </div>
                 <?php endif; ?>
 
-                <div class="account-actions" onclick="event.stopPropagation()">
+                <div class="account-actions<?= $isFavoriteCode ? ' has-favorite' : '' ?>" onclick="event.stopPropagation()">
+                    <form method="POST" action="/otp/favorites/toggle" class="d-inline" onclick="event.stopPropagation()">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="id" value="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>">
+                        <input type="hidden" name="return_to" value="<?= htmlspecialchars($otpReturnPath) ?>">
+                        <button type="submit"
+                                class="btn-action<?= $isFavoriteCode ? ' is-favorite' : '' ?>"
+                                title="<?= $isFavoriteCode ? 'Retirer des favoris' : 'Ajouter aux favoris' ?>"
+                                aria-label="<?= $isFavoriteCode ? 'Retirer des favoris' : 'Ajouter aux favoris' ?>">
+                            <i class="bi <?= $isFavoriteCode ? 'bi-star-fill' : 'bi-star' ?>"></i>
+                        </button>
+                    </form>
                     <div class="dropdown d-inline">
                         <button type="button" class="btn-action" data-bs-toggle="dropdown">
                             <i class="bi bi-three-dots"></i>
@@ -563,6 +641,7 @@ ob_start();
                         <span class="code-display">···  ···</span>
                     </div>
                 </div>
+                <div class="otp-next" data-otp-id="<?= htmlspecialchars((string)($code['id'] ?? '')) ?>"><small>Suivant: <span class="next-code-display" role="button" tabindex="0" title="Copier le code OTP suivant" onclick="copyNextOtpCode(event, this)" onkeydown="if(event.key==='Enter'||event.key===' '){copyNextOtpCode(event,this);}">···  ···</span></small></div>
                 <div class="copy-toast"><i class="bi bi-check-lg me-1"></i>Copié</div>
             </div>
         <?php endforeach; ?>
@@ -571,7 +650,7 @@ ob_start();
     <?php elseif (!empty($currentTenantId)): ?>
     <div class="empty-state">
         <div class="empty-icon"><i class="bi bi-key"></i></div>
-        <p><?= $currentFolderId !== '' ? 'Aucun code OTP dans ce dossier.' : 'Aucun code OTP à la racine de cette collection.' ?></p>
+        <p><?= $currentFolderId === 'all' ? 'Aucun code OTP dans cette collection.' : ($currentFolderId !== '' ? 'Aucun code OTP dans ce dossier.' : 'Aucun code OTP à la racine de cette collection.') ?></p>
     </div>
     <?php endif; ?>
     <?php if (!empty($currentTenantId)): ?>

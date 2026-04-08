@@ -79,6 +79,76 @@ function canDeleteOtpRecord(array $record, array $currentUser, \App\Auth $auth):
     return $tenantId !== '' && $auth->canDoInTenant($tenantId, 'delete_otp');
 }
 
+function canFavoriteOtpRecord(array $record, array $currentUser, \App\TenantManager $tenantManager): bool
+{
+    if (!empty($currentUser['is_app_admin'])) {
+        return true;
+    }
+
+    if (!empty($record['is_personal'])) {
+        return (string)($record['owner'] ?? '') === (string)($currentUser['id'] ?? '');
+    }
+
+    $tenantId = (string)($record['tenant'] ?? '');
+    if ($tenantId === '') {
+        return false;
+    }
+
+    return $tenantManager->getMembership($tenantId, (string)($currentUser['id'] ?? '')) !== null;
+}
+
+function sortCodesByFavorites(array $codes, array $favoriteCodeIdMap): array
+{
+    usort($codes, static function (array $a, array $b) use ($favoriteCodeIdMap): int {
+        $aFav = !empty($favoriteCodeIdMap[(string)($a['id'] ?? '')]);
+        $bFav = !empty($favoriteCodeIdMap[(string)($b['id'] ?? '')]);
+        if ($aFav !== $bFav) {
+            return $aFav ? -1 : 1;
+        }
+
+        $aName = strtolower((string)($a['name'] ?? ''));
+        $bName = strtolower((string)($b['name'] ?? ''));
+        return $aName <=> $bName;
+    });
+
+    return $codes;
+}
+
+// ── Favori OTP (toggle) ────────────────────────────────────────
+if ($path === '/otp/favorites/toggle' && $method === 'POST') {
+    $id = preg_replace('/[^a-zA-Z0-9]/', '', (string)($_POST['id'] ?? ''));
+    $returnTo = otpReturnPath((string)($_POST['return_to'] ?? '/otp'));
+
+    if ($id === '') {
+        flash('warning', 'Identifiant OTP manquant.');
+        header('Location: ' . $returnTo);
+        exit;
+    }
+
+    $record = $otpManager->getById($id);
+    if (!$record || !empty($record['deleted'])) {
+        flash('danger', 'Code OTP introuvable.');
+        header('Location: ' . $returnTo);
+        exit;
+    }
+
+    if (!canFavoriteOtpRecord($record, $currentUser, $tenantManager)) {
+        flash('danger', 'Vous ne pouvez pas modifier ce favori.');
+        header('Location: ' . $returnTo);
+        exit;
+    }
+
+    try {
+        $isFavorite = $otpManager->toggleFavorite((string)($currentUser['id'] ?? ''), $id);
+        flash('success', $isFavorite ? 'Code OTP ajoute aux favoris.' : 'Code OTP retire des favoris.');
+    } catch (\Exception $e) {
+        flash('danger', 'Mise a jour du favori impossible.');
+    }
+
+    header('Location: ' . $returnTo);
+    exit;
+}
+
 // ── Créer un dossier de collection ─────────────────────────────
 if ($path === '/otp/groups/create' && $method === 'POST') {
     $tenantId = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['tenant_id'] ?? '');
@@ -599,6 +669,8 @@ $currentTenantCanEditOtp = false;
 $currentTenantCanDeleteOtp = false;
 $currentTenantRole = '';
 $rootTenantCodes = [];
+$favoriteCodeIds = $otpManager->getFavoriteCodeIds((string)($currentUser['id'] ?? ''));
+$favoriteCodeIdMap = array_fill_keys($favoriteCodeIds, true);
 
 if ($isAppAdmin) {
     $requestedUserId = preg_replace('/[^a-zA-Z0-9]/', '', (string)($_GET['user_id'] ?? ''));
@@ -630,6 +702,7 @@ $showTenantCodes   = $currentScope !== 'personal';
 $personalCodes = $showPersonalCodes
     ? $otpManager->getPersonalCodes($selectedPersonalUserId, $search)
     : [];
+$personalCodes = sortCodesByFavorites($personalCodes, $favoriteCodeIdMap);
 $tenantCodes   = [];
 $currentTenantName = '';
 if ($showTenantCodes && $currentTenantId) {
@@ -640,16 +713,23 @@ if ($showTenantCodes && $currentTenantId) {
     $currentTenantRole = (string)($auth->getUserTenantRole((string)$currentTenantId) ?? '');
     $tenantGroups = $otpManager->getTenantGroups((string)$currentTenantId);
     $groupIds = array_map(static fn(array $group): string => (string)($group['id'] ?? ''), $tenantGroups);
-    if ($folderParam !== '' && in_array($folderParam, $groupIds, true)) {
+    if ($folderParam === 'all') {
+        $currentFolderId = 'all';
+    } elseif ($folderParam !== '' && in_array($folderParam, $groupIds, true)) {
         $currentFolderId = $folderParam;
     }
 
     $folderSummary = $otpManager->getTenantFolderSummary((string)$currentTenantId);
     $tenantFolders = $folderSummary['folders'] ?? [];
     $rootTenantCodes = $otpManager->getTenantCodesByGroup((string)$currentTenantId, '', $search);
-    $tenantCodes = $currentFolderId !== ''
-        ? $otpManager->getTenantCodesByGroup((string)$currentTenantId, $currentFolderId, $search)
-        : $rootTenantCodes;
+    if ($currentFolderId === 'all') {
+        $tenantCodes = $otpManager->getTenantCodes((string)$currentTenantId, $search);
+    } elseif ($currentFolderId !== '') {
+        $tenantCodes = $otpManager->getTenantCodesByGroup((string)$currentTenantId, $currentFolderId, $search);
+    } else {
+        $tenantCodes = $rootTenantCodes;
+    }
+    $tenantCodes = sortCodesByFavorites($tenantCodes, $favoriteCodeIdMap);
 
     foreach ($userTenants as $t) {
         if ($t['id'] === $currentTenantId) {
@@ -663,12 +743,16 @@ if ($showTenantCodes && $currentTenantId) {
             break;
         }
     }
+    if ($currentFolderId === 'all') {
+        $currentFolderName = 'Tous';
+    }
 } elseif ($showTenantCodes) {
     // Afficher toutes les collections par défaut
     foreach ($userTenants as $t) {
         $codes = $otpManager->getTenantCodes($t['id'], $search);
         $tenantCodes = array_merge($tenantCodes, $codes);
     }
+    $tenantCodes = sortCodesByFavorites($tenantCodes, $favoriteCodeIdMap);
     $currentTenantName = 'Toutes les collections';
 }
 
