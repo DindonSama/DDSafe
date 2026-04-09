@@ -67,8 +67,6 @@ class Setup
 
         // 2. Extend users collection
         $this->extendUsersCollection();
-        $this->ensureAuditCollections();
-        $this->ensureRuntimeSettingsCollection();
 
         // 3. Create custom collections
         $this->createCollectionIfMissing('tenants', [
@@ -81,6 +79,10 @@ class Setup
         ]);
 
         $this->migrateTenantsCollection();
+
+        // Collections with relations to tenants must be created only after tenants exists.
+        $this->ensureAuditCollections();
+        $this->ensureRuntimeSettingsCollection();
 
         $this->createCollectionIfMissing('tenant_members', [
             ['name' => 'tenant', 'type' => 'relation', 'required' => true,  'collectionId' => $this->getCollectionId('tenants'), 'maxSelect' => 1, 'cascadeDelete' => true],

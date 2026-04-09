@@ -46,5 +46,8 @@ if [ ! -f vendor/autoload.php ]; then
     composer install --no-dev --optimize-autoloader --no-interaction 2>&1
 fi
 
+echo "Running application bootstrap..."
+php /var/www/app/scripts/bootstrap.php
+
 echo "=== Setup complete — starting Apache ==="
 exec apache2-foreground
