@@ -15,8 +15,12 @@ if ($method === 'GET') {
     $oidcEnabled = $config['oidc']['enabled'] ?? false;
     $oidcButtonLabel = $config['oidc']['button_label'] ?? 'Se connecter via SSO';
     $rememberedIdentity = trim($_COOKIE['remember_login'] ?? '');
-    $rememberedLoginType = trim($_COOKIE['remember_login_type'] ?? 'local');
-    if ($rememberedLoginType !== 'ldap' || !$ldapEnabled) {
+    $defaultLoginType = $ldapEnabled ? 'ldap' : 'local';
+    $rememberedLoginType = trim($_COOKIE['remember_login_type'] ?? $defaultLoginType);
+    if (!in_array($rememberedLoginType, ['local', 'ldap'], true)) {
+        $rememberedLoginType = $defaultLoginType;
+    }
+    if ($rememberedLoginType === 'ldap' && !$ldapEnabled) {
         $rememberedLoginType = 'local';
     }
     require __DIR__ . '/../templates/login.php';
@@ -24,7 +28,7 @@ if ($method === 'GET') {
 }
 
 // POST /login
-$loginType = $_POST['login_type'] ?? 'local';
+$loginType = $_POST['login_type'] ?? (!empty($config['ldap']['enabled']) ? 'ldap' : 'local');
 $identity  = trim($_POST['identity'] ?? '');
 $password  = $_POST['password'] ?? '';
 $rememberIdentity = !empty($_POST['remember_identity']);
