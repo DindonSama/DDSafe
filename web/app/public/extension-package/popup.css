@@ -16,8 +16,9 @@ body {
   font-family: "Segoe UI", Tahoma, sans-serif;
   background: var(--bg);
   color: var(--text);
-  min-width: 360px;
-  overflow: hidden;
+  width: 360px;
+  max-width: 360px;
+  overflow-x: hidden;
 }
 
 .wrap {
@@ -116,6 +117,8 @@ header h1 .app-icon {
   padding: 8px;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .item:hover {
@@ -134,12 +137,17 @@ header h1 .app-icon {
   gap: 10px;
   align-items: center;
 }
+.info {
+  flex: 1;
+  min-width: 0;
+}
 .right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
   flex-shrink: 0;
+  min-width: 70px;
 }
 
 .timer {
