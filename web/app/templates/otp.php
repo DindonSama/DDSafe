@@ -519,6 +519,7 @@ ob_start();
                                     data-digits="<?= htmlspecialchars((string)($code['digits'] ?? 6)) ?>"
                                     data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>"
                                     data-group="<?= htmlspecialchars((string)($code['group'] ?? '')) ?>"
+                                    data-tenant="<?= htmlspecialchars((string)($code['tenant'] ?? '')) ?>"
                                     data-can-delete="<?= $canDeleteTenantCode ? '1' : '0' ?>">
                                 <i class="bi bi-pencil"></i>
                             </button>
@@ -598,6 +599,7 @@ ob_start();
                                         data-digits="<?= htmlspecialchars((string)($code['digits'] ?? 6)) ?>"
                                         data-period="<?= htmlspecialchars((string)($code['period'] ?? 30)) ?>"
                                         data-group="<?= htmlspecialchars((string)($code['group'] ?? '')) ?>"
+                                        data-tenant="<?= htmlspecialchars((string)($code['tenant'] ?? '')) ?>"
                                         data-can-delete="<?= $canDeleteTenantCode ? '1' : '0' ?>">
                                     <i class="bi bi-pencil me-2"></i>Modifier
                                 </button>
@@ -1179,12 +1181,24 @@ function openEditGroupModal(btn) {
                         </div>
                     </div>
                     <?php if (!empty($currentTenantId)): ?>
-                    <div class="mb-0">
+                    <div class="mb-3">
                         <label class="form-label">Dossier</label>
                         <select name="group_id" id="edit-otp-group" class="form-select">
                             <option value="">-- Racine --</option>
                             <?php foreach ($tenantGroups as $group): ?>
                                 <option value="<?= htmlspecialchars((string)$group['id']) ?>"><?= htmlspecialchars($group['name'] ?? 'Dossier') ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (count($otpWritableTenants) > 1): ?>
+                    <div class="mb-0" id="edit-otp-tenant-wrap">
+                        <label class="form-label">Déplacer vers la collection</label>
+                        <select name="new_tenant_id" id="edit-otp-tenant" class="form-select">
+                            <?php foreach ($otpWritableTenants as $t): ?>
+                                <option value="<?= htmlspecialchars($t['id']) ?>">
+                                    <?= htmlspecialchars($t['name']) ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>

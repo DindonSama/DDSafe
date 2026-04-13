@@ -224,6 +224,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         setSecretVisibility(false);
 
+        // Gestion du select de collection (déplacement)
+        const tenantSelect = document.getElementById('edit-otp-tenant');
+        const tenantWrap = document.getElementById('edit-otp-tenant-wrap');
+        const isPersonal = (btn.dataset.deleteScope || '') === 'personal';
+        if (tenantWrap) {
+            tenantWrap.style.display = isPersonal ? 'none' : '';
+        }
+        if (tenantSelect && !isPersonal && btn.dataset.tenant) {
+            tenantSelect.value = btn.dataset.tenant;
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('editOtpModal'));
         modal.show();
     }, true);

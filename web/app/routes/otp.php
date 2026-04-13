@@ -564,6 +564,7 @@ if ($path === '/otp/edit' && $method === 'POST') {
     $digits    = (int)($_POST['digits'] ?? 6);
     $period    = (int)($_POST['period'] ?? 30);
     $groupId   = sanitizeOtpGroupId((string)($_POST['group_id'] ?? ''));
+    $newTenantId = preg_replace('/[^a-zA-Z0-9]/', '', $_POST['new_tenant_id'] ?? '');
     $returnTo  = otpReturnPath((string)($_POST['return_to'] ?? '/otp'));
 
     if (!in_array($algorithm, ['SHA1', 'SHA256', 'SHA512'], true)) {
@@ -590,7 +591,28 @@ if ($path === '/otp/edit' && $method === 'POST') {
             exit;
         }
 
-        if (!empty($record['is_personal'])) {
+        // Déplacement vers une autre collection
+        $isPersonal = !empty($record['is_personal']);
+        if (!$isPersonal && $newTenantId !== '' && $newTenantId !== $tenantId) {
+            // Vérifier que l'utilisateur a le droit de créer dans la collection cible
+            if (!$auth->canDoInTenant($newTenantId, 'create_otp') && empty($currentUser['is_app_admin'])) {
+                flash('danger', 'Vous n\'avez pas la permission d\'écrire dans cette collection.');
+                header('Location: ' . $returnTo);
+                exit;
+            }
+            // Réinitialiser le dossier car il appartient à l'ancienne collection
+            $groupId = '';
+            $otpManager->update($id, ['tenant' => $newTenantId, 'group' => ''], $currentUser['id']);
+            $auditLogger->log('otp', 'move', $currentUser, [
+                'target_id'   => $id,
+                'target_name' => $name,
+                'tenant'      => $newTenantId,
+                'details'     => ['from_tenant' => $tenantId, 'to_tenant' => $newTenantId],
+            ]);
+            $tenantId = $newTenantId;
+        }
+
+        if ($isPersonal) {
             $groupId = '';
         } elseif (!validateOtpGroupForTenant($otpManager, $groupId, $tenantId)) {
             flash('danger', 'Dossier invalide pour cette collection.');
