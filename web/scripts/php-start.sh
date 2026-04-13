@@ -17,12 +17,17 @@ if ! php -m 2>/dev/null | grep -qi ldap; then
 fi
 
 # Enable Apache modules
-a2enmod rewrite > /dev/null 2>&1
+a2enmod rewrite remoteip > /dev/null 2>&1
 
 # Configure Apache
 cat > /etc/apache2/sites-available/000-default.conf << 'APACHE_CONF'
 <VirtualHost *:80>
     DocumentRoot /var/www/app/public
+
+    # Trust X-Forwarded-For from Nginx Proxy Manager (private Docker ranges)
+    RemoteIPHeader X-Forwarded-For
+    RemoteIPTrustedProxy 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+
     <Directory /var/www/app/public>
         Options -Indexes +FollowSymLinks
         AllowOverride All

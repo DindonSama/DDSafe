@@ -154,6 +154,7 @@ if (!empty($currentUser)) {
     $_SESSION['user'] = $currentUser;
 }
 
+
 try {
     if ($path === '/login') {
         require __DIR__ . '/../routes/auth.php';

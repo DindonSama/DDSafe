@@ -17,6 +17,38 @@ class SecurityLogger
         $this->retentionDays = max(1, $retentionDays);
     }
 
+    /**
+     * Returns the real client IP, reading proxy headers when the direct
+     * connection originates from a trusted private/Docker range.
+     */
+    private static function getClientIp(): string
+    {
+        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+        $trustedRanges = ['10.', '172.', '192.168.', '127.', 'fc', 'fd'];
+        $isTrustedProxy = false;
+        foreach ($trustedRanges as $prefix) {
+            if (str_starts_with($remoteAddr, $prefix)) {
+                $isTrustedProxy = true;
+                break;
+            }
+        }
+        if ($isTrustedProxy) {
+            // X-Real-IP is the most direct header set by Nginx Proxy Manager
+            if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+                return $_SERVER['HTTP_X_REAL_IP'];
+            }
+            // X-Forwarded-For may contain a chain; the first entry is the client
+            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                $parts = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+                $first = trim($parts[0]);
+                if (filter_var($first, FILTER_VALIDATE_IP)) {
+                    return $first;
+                }
+            }
+        }
+        return $remoteAddr;
+    }
+
     public function logAuthFailure(string $identity, string $loginType, string $reason): void
     {
         try {
@@ -24,7 +56,7 @@ class SecurityLogger
                 'identity' => $identity,
                 'login_type' => $loginType,
                 'reason' => $reason,
-                'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+                'ip' => self::getClientIp(),
                 'user_agent' => (string)($_SERVER['HTTP_USER_AGENT'] ?? ''),
                 'occurred_at' => date('c'),
             ]);

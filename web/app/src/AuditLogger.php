@@ -17,6 +17,36 @@ class AuditLogger
         $this->retentionDays = max(1, $retentionDays);
     }
 
+    /**
+     * Returns the real client IP, reading proxy headers when the direct
+     * connection originates from a trusted private/Docker range.
+     */
+    private static function getClientIp(): string
+    {
+        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+        $trustedRanges = ['10.', '172.', '192.168.', '127.', 'fc', 'fd'];
+        $isTrustedProxy = false;
+        foreach ($trustedRanges as $prefix) {
+            if (str_starts_with($remoteAddr, $prefix)) {
+                $isTrustedProxy = true;
+                break;
+            }
+        }
+        if ($isTrustedProxy) {
+            if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+                return $_SERVER['HTTP_X_REAL_IP'];
+            }
+            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                $parts = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+                $first = trim($parts[0]);
+                if (filter_var($first, FILTER_VALIDATE_IP)) {
+                    return $first;
+                }
+            }
+        }
+        return $remoteAddr;
+    }
+
     public function log(string $category, string $action, array $actor, array $context = []): void
     {
         try {
@@ -29,7 +59,7 @@ class AuditLogger
                 'target_name' => (string)($context['target_name'] ?? ''),
                 'tenant' => (string)($context['tenant'] ?? ''),
                 'details' => json_encode($context['details'] ?? [], JSON_UNESCAPED_SLASHES),
-                'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+                'ip' => self::getClientIp(),
                 'logged_at' => date('c'),
             ];
 
