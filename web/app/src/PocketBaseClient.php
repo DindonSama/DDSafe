@@ -85,6 +85,27 @@ class PocketBaseClient
         return $this->request('GET', $url);
     }
 
+    /**
+     * Fetch all records across multiple pages (max 500 per page).
+     * Returns the same shape as listRecords but with all items merged.
+     */
+    public function listAllRecords(string $collection, array $params = []): array
+    {
+        $params['perPage'] = 500;
+        $params['page']    = 1;
+        $allItems          = [];
+
+        do {
+            $result     = $this->listRecords($collection, $params);
+            $items      = $result['items'] ?? [];
+            $allItems   = array_merge($allItems, $items);
+            $totalPages = (int)($result['totalPages'] ?? 1);
+            $params['page']++;
+        } while (!empty($items) && $params['page'] <= $totalPages);
+
+        return ['items' => $allItems, 'totalItems' => count($allItems)];
+    }
+
     public function getRecord(string $collection, string $id, array $params = []): ?array
     {
         try {

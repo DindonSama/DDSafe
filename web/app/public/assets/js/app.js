@@ -83,18 +83,27 @@ function copyNextOtpCode(event, el) {
 document.addEventListener('DOMContentLoaded', function () {
 
     // ── OTP Code Refresh (circular ring) ─────────────────────────
+    let refreshCodes = null;
     const otpElements = document.querySelectorAll('[data-otp-id]');
     if (otpElements.length > 0) {
-        const otpIds = Array.from(new Set(
-            Array.from(otpElements)
-                .map(el => el.dataset.otpId)
-                .filter(Boolean)
-        ));
+        function getVisibleOtpIds() {
+            const seen = new Set();
+            document.querySelectorAll('[data-otp-id]').forEach(el => {
+                const id = el.dataset.otpId;
+                if (!id) return;
+                // Walk up to find the nearest .otp-item ancestor or self
+                const item = el.closest('.otp-item') || el;
+                if (item.style.display === 'none') return;
+                seen.add(id);
+            });
+            return Array.from(seen);
+        }
 
-        function refreshCodes() {
-            if (otpIds.length === 0) return;
+        refreshCodes = function refreshCodes() {
+            const ids = getVisibleOtpIds();
+            if (ids.length === 0) return;
 
-            fetch('/api/otp/codes?ids=' + otpIds.join(','))
+            fetch('/api/otp/codes?ids=' + ids.join(','))
                 .then(r => r.json())
                 .then(data => {
                     const codes = data.codes || {};
@@ -390,6 +399,27 @@ document.addEventListener('DOMContentLoaded', function () {
     const otpIssuerFilter = document.getElementById('otp-issuer-filter');
     const otpFavoritesOnlyBtn = document.getElementById('otp-favorites-only-btn');
     let favoritesOnly = false;
+    const OTP_PER_PAGE_KEY = 'otp_per_page';
+    const OTP_PER_PAGE_OPTIONS = [25, 50, 100, 9999];
+    let OTP_PAGE_SIZE = parseInt(localStorage.getItem(OTP_PER_PAGE_KEY) || '25', 10);
+    if (!OTP_PER_PAGE_OPTIONS.includes(OTP_PAGE_SIZE)) OTP_PAGE_SIZE = 25;
+    const otpCurrentPage = {};
+
+    function setOtpPageSize(value) {
+        if (!OTP_PER_PAGE_OPTIONS.includes(value)) {
+            return;
+        }
+        OTP_PAGE_SIZE = value;
+        localStorage.setItem(OTP_PER_PAGE_KEY, String(value));
+        document.querySelectorAll('.otp-per-page-select').forEach(select => {
+            select.value = String(value);
+        });
+        document.querySelectorAll('[data-otp-section]').forEach(sec => {
+            otpCurrentPage[sec.dataset.otpSection] = 1;
+        });
+        applyOtpPagination();
+        if (refreshCodes) refreshCodes();
+    }
 
     function applyOtpFilters() {
         const q = (otpSearch?.value || '').toLowerCase().trim();
@@ -402,8 +432,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const matchSearch = q === '' || name.includes(q) || issuer.includes(q);
             const matchIssuer = issuerFilter === '' || issuer === issuerFilter;
             const matchFavorite = !favoritesOnly || isFavorite;
-            item.style.display = matchSearch && matchIssuer && matchFavorite ? '' : 'none';
+            item.dataset.filterMatch = (matchSearch && matchIssuer && matchFavorite) ? '1' : '0';
         });
+        document.querySelectorAll('[data-otp-section]').forEach(sec => {
+            otpCurrentPage[sec.dataset.otpSection] = 1;
+        });
+        applyOtpPagination();
     }
 
     if (otpFavoritesOnlyBtn) {
@@ -496,6 +530,95 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // ── OTP Pagination ───────────────────────────────────────────
+    function applyOtpPagination() {
+        document.querySelectorAll('[data-otp-section]').forEach(section => {
+            const sectionId = section.dataset.otpSection;
+            const page = otpCurrentPage[sectionId] || 1;
+            const items = Array.from(section.querySelectorAll('.otp-item'));
+            const matchingCount = items.reduce((count, item) => count + (item.dataset.filterMatch !== '0' ? 1 : 0), 0);
+            const start = (page - 1) * OTP_PAGE_SIZE;
+            const end = start + OTP_PAGE_SIZE;
+            let visibleIndex = 0;
+            items.forEach(item => {
+                if (item.dataset.filterMatch === '0') {
+                    item.style.display = 'none';
+                } else {
+                    item.style.display = (visibleIndex >= start && visibleIndex < end) ? '' : 'none';
+                    visibleIndex++;
+                }
+            });
+            section.dataset.otpReady = '1';
+            renderOtpPaginationControl(sectionId, matchingCount, page);
+        });
+    }
+
+    function renderOtpPaginationControl(sectionId, totalItems, currentPage) {
+        const container = document.getElementById('pagination-' + sectionId);
+        if (!container) return;
+        const totalPages = OTP_PAGE_SIZE >= 9999 ? 1 : Math.ceil(totalItems / OTP_PAGE_SIZE);
+        if (totalItems <= 0) { container.innerHTML = ''; return; }
+        const maxPageButtons = 5;
+        let left = Math.max(1, currentPage - Math.floor(maxPageButtons / 2));
+        let right = left + maxPageButtons - 1;
+        if (right > totalPages) {
+            right = totalPages;
+            left = Math.max(1, right - maxPageButtons + 1);
+        }
+        const from  = Math.min((currentPage - 1) * OTP_PAGE_SIZE + 1, totalItems);
+        const to    = Math.min(currentPage * OTP_PAGE_SIZE, totalItems);
+
+        let pages = '';
+        for (let i = left; i <= right; i++) {
+            pages += '<button class="otp-page-btn' + (i === currentPage ? ' active' : '') + '" data-section="' + sectionId + '" data-page="' + i + '">' + i + '</button>';
+        }
+
+        const pagerNumbers = totalPages <= 1
+            ? ''
+            : '<button class="otp-page-btn otp-page-arrow" data-section="' + sectionId + '" data-page="' + (currentPage - 1) + '" ' + (currentPage <= 1 ? 'disabled' : '') + ' aria-label="Précédent"><i class="bi bi-chevron-left"></i></button>' +
+              '<div class="otp-page-numbers">' + pages + '</div>' +
+              '<button class="otp-page-btn otp-page-arrow" data-section="' + sectionId + '" data-page="' + (currentPage + 1) + '" ' + (currentPage >= totalPages ? 'disabled' : '') + ' aria-label="Suivant"><i class="bi bi-chevron-right"></i></button>';
+
+        container.innerHTML =
+            '<div class="otp-pager">' +
+                '<div class="otp-pager-main">' +
+                    pagerNumbers +
+                    '<span class="otp-page-info">' + from + '\u2013' + to + ' <span class="otp-page-info-sep">sur</span> ' + totalItems + '</span>' +
+                '</div>' +
+                '<label class="otp-per-page-control">' +
+                    '<span>Par page</span>' +
+                    '<select class="otp-per-page-select" aria-label="Codes affichés par page">' +
+                        '<option value="25"' + (OTP_PAGE_SIZE === 25 ? ' selected' : '') + '>25</option>' +
+                        '<option value="50"' + (OTP_PAGE_SIZE === 50 ? ' selected' : '') + '>50</option>' +
+                        '<option value="100"' + (OTP_PAGE_SIZE === 100 ? ' selected' : '') + '>100</option>' +
+                        '<option value="9999"' + (OTP_PAGE_SIZE === 9999 ? ' selected' : '') + '>Tout</option>' +
+                    '</select>' +
+                '</label>' +
+            '</div>';
+
+        container.onclick = function handlePagerClick(e) {
+            const btn = e.target.closest('.otp-page-btn[data-page]');
+            if (!btn || btn.disabled) return;
+            const sec = btn.dataset.section;
+            const p = parseInt(btn.dataset.page, 10);
+            if (!isNaN(p) && p >= 1 && p <= totalPages) {
+                otpCurrentPage[sec] = p;
+                applyOtpPagination();
+                if (refreshCodes) refreshCodes();
+            }
+        };
+
+        container.onchange = function handlePerPageChange(e) {
+            const select = e.target.closest('.otp-per-page-select');
+            if (!select) return;
+            setOtpPageSize(parseInt(select.value, 10));
+        };
+    }
+
+    // Init : tous les items sont visibles au chargement
+    document.querySelectorAll('.otp-item').forEach(item => { item.dataset.filterMatch = '1'; });
+    applyOtpPagination();
 
     const searchInputs = document.querySelectorAll('[data-live-search]');
     searchInputs.forEach(input => {

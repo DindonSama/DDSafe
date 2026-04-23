@@ -213,7 +213,7 @@ ob_start();
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody data-otp-section="personal">
                     <?php foreach ($personalCodes as $code):
                         $canManagePersonalCode = !empty($currentUser['is_app_admin']) || ((string)($code['owner'] ?? '') === (string)($currentUser['id'] ?? ''));
                         $canExportPersonalCode = $canManagePersonalCode;
@@ -270,7 +270,7 @@ ob_start();
             </table>
         </div>
         <?php else: ?>
-        <div class="otp-grid mb-4" id="personal-codes">
+        <div class="otp-grid mb-4" id="personal-codes" data-otp-section="personal">
             <?php foreach ($personalCodes as $i => $code):
                 $avatarIcon   = otpIssuerIcon((string)($code['issuer'] ?? ''));
                 $avatarLetter = strtoupper(mb_substr($code['issuer'] ?: $code['name'], 0, 1));
@@ -373,6 +373,7 @@ ob_start();
             <?php endforeach; ?>
         </div>
         <?php endif; ?>
+    <div id="pagination-personal" class="otp-pagination mt-2 mb-3"></div>
     <?php endif; ?>
     <?php endif; ?>
 
@@ -466,7 +467,7 @@ ob_start();
                     <th>Actions</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody data-otp-section="tenant">
                 <?php foreach ($tenantCodes as $code):
                     $tenantId = (string)($code['tenant'] ?? '');
                     $groupName = (string)($code['expand']['group']['name'] ?? '');
@@ -535,7 +536,7 @@ ob_start();
         </table>
     </div>
     <?php else: ?>
-    <div class="otp-grid mb-4" id="tenant-codes">
+    <div class="otp-grid mb-4" id="tenant-codes" data-otp-section="tenant">
         <?php foreach ($tenantCodes as $i => $code):
             $avatarIcon   = otpIssuerIcon((string)($code['issuer'] ?? ''));
             $avatarLetter = strtoupper(mb_substr($code['issuer'] ?: $code['name'], 0, 1));
@@ -649,6 +650,7 @@ ob_start();
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
+    <div id="pagination-tenant" class="otp-pagination mt-2 mb-3"></div>
     <?php elseif (!empty($currentTenantId)): ?>
     <div class="empty-state">
         <div class="empty-icon"><i class="bi bi-key"></i></div>

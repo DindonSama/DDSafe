@@ -67,10 +67,9 @@ class OTPManager
 
     public function getTrashedCodes(): array
     {
-        $result = $this->pb->listRecords('otp_codes', [
+        $result = $this->pb->listAllRecords('otp_codes', [
             'filter'  => 'deleted=true',
             'sort'    => '-deleted_at',
-            'perPage' => 200,
             'expand'  => 'deleted_by,owner,tenant',
         ]);
         return $result['items'] ?? [];
@@ -91,10 +90,9 @@ class OTPManager
         if ($search !== '') {
             $filter .= " && (name~'{$this->esc($search)}' || issuer~'{$this->esc($search)}')";
         }
-        $result = $this->pb->listRecords('otp_codes', [
-            'filter'  => $filter,
-            'sort'    => 'name',
-            'perPage' => 200,
+        $result = $this->pb->listAllRecords('otp_codes', [
+            'filter' => $filter,
+            'sort'   => 'name',
         ]);
         return array_map(fn($r) => $this->withDecryptedSecret($r), $result['items'] ?? []);
     }
@@ -112,10 +110,9 @@ class OTPManager
 
     public function getTenantGroups(string $tenantId): array
     {
-        $result = $this->pb->listRecords('otp_groups', [
-            'filter'  => "tenant='{$this->esc($tenantId)}'",
-            'sort'    => 'name',
-            'perPage' => 200,
+        $result = $this->pb->listAllRecords('otp_groups', [
+            'filter' => "tenant='{$this->esc($tenantId)}'",
+            'sort'   => 'name',
         ]);
         return $result['items'] ?? [];
     }
@@ -285,15 +282,14 @@ class OTPManager
         }
 
         $params = [
-            'filter'  => $filter,
-            'sort'    => 'name',
-            'perPage' => 200,
+            'filter' => $filter,
+            'sort'   => 'name',
         ];
         if ($expand !== '') {
             $params['expand'] = $expand;
         }
 
-        $result = $this->pb->listRecords('otp_codes', $params);
+        $result = $this->pb->listAllRecords('otp_codes', $params);
         return $result['items'] ?? [];
     }
 
@@ -329,12 +325,27 @@ class OTPManager
 
     public function generateCodes(array $ids): array
     {
+        if (empty($ids)) {
+            return [];
+        }
+
+        // Build a single filter to fetch all needed records in one PocketBase request
+        $escaped = array_map(fn($id) => "id='{$this->esc($id)}'", $ids);
+        $filter  = implode('||', $escaped);
+
+        $result  = $this->pb->listRecords('otp_codes', [
+            'filter'  => $filter,
+            'perPage' => count($ids),
+        ]);
+
         $codes = [];
-        foreach ($ids as $id) {
-            $record = $this->getById($id);
-            if ($record) {
-                $codes[$id] = $this->generateCode($record);
+        foreach (($result['items'] ?? []) as $record) {
+            $id = (string)($record['id'] ?? '');
+            if ($id === '') {
+                continue;
             }
+            $record['secret'] = $this->decrypt($record['secret_enc'] ?? '');
+            $codes[$id] = $this->generateCode($record);
         }
         return $codes;
     }
